@@ -20,10 +20,10 @@
 [0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin[0m
 [0m[[0mdebug[0m] [0m	com/vladimir/nik/print/plugin/PrintPlugin$$anonfun$processOptions$1.class[0m
 [0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin/PrintPlugin$$anonfun$processOptions$1.class[0m
-[0m[[0mdebug[0m] [0m	com/vladimir/nik/print/plugin/PrintPlugin$afterPatmat$.class[0m
-[0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin/PrintPlugin$afterPatmat$.class[0m
 [0m[[0mdebug[0m] [0m	com/vladimir/nik/print/plugin/PrintPlugin$.class[0m
 [0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin/PrintPlugin$.class[0m
+[0m[[0mdebug[0m] [0m	com/vladimir/nik/print/plugin/PrintPlugin$afterTyper$.class[0m
+[0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin/PrintPlugin$afterTyper$.class[0m
 [0m[[0mdebug[0m] [0m	com/vladimir/nik/print/plugin/PrintPlugin.class[0m
 [0m[[0mdebug[0m] [0m	  /home/vova/scala-projects/GSoC/compilerPlugins/printPlugin/target/scala-2.10/classes/com/vladimir/nik/print/plugin/PrintPlugin.class[0m
 [0m[[0minfo[0m] [0mDone packaging.[0m

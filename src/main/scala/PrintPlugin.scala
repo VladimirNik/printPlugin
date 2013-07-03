@@ -21,10 +21,10 @@ class PrintPlugin(val global: Global) extends Plugin {
   var baseDir: String = "."
   var dirName = "sourceFromAST"
 
-  object afterPatmat extends PrintPhaseComponent("patmat")
-  object afterParser extends PrintPhaseComponent("parser")
+  object afterTyper extends PrintPhaseComponent("typer", "patmat")
+  object afterParser extends PrintPhaseComponent("parser", "namer")
 
-  val components = List[PluginComponent](afterPatmat, afterParser)
+  val components = List[PluginComponent](afterTyper, afterParser)
 
   override def processOptions(options: List[String], error: String => Unit) {
     for (option <- options) {
@@ -38,11 +38,12 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
   }
 
-  class PrintPhaseComponent(beforePhase: String) extends PluginComponent {
+  class PrintPhaseComponent(beforePhase: String, afterPhase: String) extends PluginComponent {
     val global: PrintPlugin.this.global.type = PrintPlugin.this.global
 
     override val runsAfter = List[String](beforePhase)
-    override val runsRightAfter = Option(beforePhase)
+    //override val runsRightAfter = Option(beforePhase)
+    override val runsBefore = List[String](afterPhase)
 
     val phaseName = "printSourceAfter_" + beforePhase
     def newPhase(_prev: Phase) = new PrintPhase(_prev)
