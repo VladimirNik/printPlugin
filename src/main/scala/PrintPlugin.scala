@@ -38,14 +38,16 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
   }
 
-  class PrintPhaseComponent(beforePhase: String, afterPhase: String) extends PluginComponent {
+  //Phase should be inserted between prevPhase and nextPhase
+  //but it possible that not right after prevPhase or not right before nextPhase
+  class PrintPhaseComponent(prevPhase: String, nextPhase: String) extends PluginComponent {
     val global: PrintPlugin.this.global.type = PrintPlugin.this.global
 
-    override val runsAfter = List[String](beforePhase)
-    //override val runsRightAfter = Option(beforePhase)
-    override val runsBefore = List[String](afterPhase)
+    override val runsAfter = List[String](prevPhase)
+    //override val runsRightAfter = Option(prevPhase)
+    override val runsBefore = List[String](nextPhase)
 
-    val phaseName = "printSourceAfter_" + beforePhase
+    val phaseName = "printSourceAfter_" + prevPhase
     def newPhase(_prev: Phase) = new PrintPhase(_prev)
 
     class PrintPhase(prev: Phase) extends StdPhase(prev) {
@@ -69,7 +71,7 @@ class PrintPlugin(val global: Global) extends Plugin {
         }
         rootDir.mkdir()
 
-        val dir = new File(rootDir.getAbsolutePath + File.separator + "before_" + beforePhase)
+        val dir = new File(rootDir.getAbsolutePath + File.separator + "before_" + nextPhase)
         dir.mkdir()
 
         val filePath = dir.getAbsolutePath + File.separator + unit.source.file.name
