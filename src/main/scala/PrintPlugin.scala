@@ -21,10 +21,29 @@ class PrintPlugin(val global: Global) extends Plugin {
   var baseDir: String = "."
   var dirName = "sourceFromAST"
 
-  object afterTyper extends PrintPhaseComponent("typer", "patmat")
-  object afterParser extends PrintPhaseComponent("parser", "namer")
+  object afterParser extends PrintPhaseComponent("parser", "namer") {
 
-  val components = List[PluginComponent](afterTyper, afterParser)
+    override def newPhase(_prev: Phase) = new PrintPhase(_prev)
+
+    //TODO: refactor
+    class PrintPhase(prev: Phase) extends StdPhase(prev) {
+      override def name = PrintPlugin.this.name
+      def apply(unit: CompilationUnit) {
+        try {
+          writeSourceCode(unit, unit.source.content.mkString, "originalSource")
+          writeSourceCode(unit, show(unit.body), "before_" + nextPhase)
+        } catch {
+          case e: Exception =>
+            e.printStackTrace()
+        }
+      }
+    }
+  }
+
+  object afterTyper extends PrintPhaseComponent("typer", "patmat")
+  //object afterParser extends PrintPhaseComponent("parser", "namer")
+
+  val components = List[PluginComponent](afterParser, afterTyper)
 
   override def processOptions(options: List[String], error: String => Unit) {
     for (option <- options) {
@@ -38,9 +57,40 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
   }
 
+  def writeSourceCode(unit: CompilationUnit, sourceCode: String, folderName: String) {
+    //generate name for default folder
+    val defaultDirName = "sourceFromAST"
+
+    //default dir path
+    //val defaultDir = "."
+    val defaultDir = System.getProperty("user.dir")
+
+    val rootDir = try {
+      if (!baseDir.isEmpty && !dirName.isEmpty)
+        new File(PrintPlugin.this.baseDir + File.separator + PrintPlugin.this.dirName)
+      else throw new Exception
+    } catch {
+      case e: Exception =>
+        new File(defaultDir + File.separator + defaultDirName)
+    }
+    rootDir.mkdir()
+
+    val dir = new File(rootDir.getAbsolutePath + File.separator + folderName)
+    dir.mkdir()
+
+    val filePath = dir.getAbsolutePath + File.separator + unit.source.file.name
+    val writer = new PrintWriter(new File(filePath))
+
+    try {
+      writer.write(sourceCode)
+    } finally {
+      writer.close()
+    }
+  }
+
   //Phase should be inserted between prevPhase and nextPhase
   //but it possible that not right after prevPhase or not right before nextPhase
-  class PrintPhaseComponent(prevPhase: String, nextPhase: String) extends PluginComponent {
+  class PrintPhaseComponent(val prevPhase: String, val nextPhase: String) extends PluginComponent {
     val global: PrintPlugin.this.global.type = PrintPlugin.this.global
 
     override val runsAfter = List[String](prevPhase)
@@ -48,46 +98,15 @@ class PrintPlugin(val global: Global) extends Plugin {
     override val runsBefore = List[String](nextPhase)
 
     val phaseName = "printSourceAfter_" + prevPhase
-    def newPhase(_prev: Phase) = new PrintPhase(_prev)
+    def newPhase(_prev: Phase): StdPhase = new PrintPhase(_prev)
 
     class PrintPhase(prev: Phase) extends StdPhase(prev) {
       override def name = PrintPlugin.this.name
 
-      def writeSourceCode(unit: CompilationUnit, sourceCode: String) = {
-        //generate name for default folder
-        val defaultDirName = "sourceFromAST"
-
-        //default dir path
-        //val defaultDir = "."
-        val defaultDir = System.getProperty("user.dir")
-
-        val rootDir = try {
-          if (!baseDir.isEmpty && !dirName.isEmpty)
-            new File(PrintPlugin.this.baseDir + File.separator + PrintPlugin.this.dirName)
-          else throw new Exception
-        } catch {
-          case e: Exception =>
-            new File(defaultDir + File.separator + defaultDirName)
-        }
-        rootDir.mkdir()
-
-        val dir = new File(rootDir.getAbsolutePath + File.separator + "before_" + nextPhase)
-        dir.mkdir()
-
-        val filePath = dir.getAbsolutePath + File.separator + unit.source.file.name
-        val writer = new PrintWriter(new File(filePath))
-
-        try {
-          writer.write(sourceCode)
-        } finally {
-          writer.close()
-        }
-      }
-
       def apply(unit: CompilationUnit) {
-        val sourceCode = show(unit.body)
         try {
-          writeSourceCode(unit, sourceCode)
+          val sourceCode = show(unit.body)
+          writeSourceCode(unit, sourceCode, "before_" + nextPhase)
         } catch {
           case e: Exception =>
             e.printStackTrace()
