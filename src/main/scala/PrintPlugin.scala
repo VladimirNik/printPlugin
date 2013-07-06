@@ -18,7 +18,7 @@ class PrintPlugin(val global: Global) extends Plugin {
   val name = "printplugin"
   val description = "print source code from AST after patmat and parser phases"
 
-  var baseDir: String = "."
+  var baseDir: String = System.getProperty("user.dir")
   var dirName = "sourceFromAST"
 
   object afterParser extends PrintPhaseComponent("parser", "namer") {
@@ -64,23 +64,17 @@ class PrintPlugin(val global: Global) extends Plugin {
     //default dir path
     //val defaultDir = "."
     val defaultDir = System.getProperty("user.dir")
+    val sbtSourcePath = "src/main/scala"
 
-    val rootDir = try {
-      if (!baseDir.isEmpty && !dirName.isEmpty)
-        new File(PrintPlugin.this.baseDir + File.separator + PrintPlugin.this.dirName)
-      else throw new Exception
-    } catch {
-      case e: Exception =>
-        new File(defaultDir + File.separator + defaultDirName)
-    }
-    rootDir.mkdir()
+    val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
+    val genSourcePath = currentFilePath.replaceFirst(sbtSourcePath, dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
 
-    val dir = new File(rootDir.getAbsolutePath + File.separator + folderName)
-    dir.mkdir()
+    val dir = new File(genSourcePath)
+    dir.mkdirs()
 
-    val filePath = dir.getAbsolutePath + File.separator + unit.source.file.name
+    val filePath = genSourcePath + File.separator + unit.source.file.name
+
     val writer = new PrintWriter(new File(filePath))
-
     try {
       writer.write(sourceCode)
     } finally {
