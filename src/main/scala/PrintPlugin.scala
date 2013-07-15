@@ -5,7 +5,8 @@ import nsc.Global
 import nsc.Phase
 import nsc.plugins.Plugin
 import nsc.plugins.PluginComponent
-import java.io.{PrintWriter, File}
+import java.io.{StringWriter, PrintWriter, File}
+import com.vladimir.nik.print.plugin.printer.ASTPrinters
 
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
@@ -15,6 +16,7 @@ object PrintPlugin {
 class PrintPlugin(val global: Global) extends Plugin {
   import PrintPlugin._
   import global._
+
   val name = "printplugin"
   val description = "print source code from AST after patmat and parser phases"
 
@@ -106,6 +108,20 @@ class PrintPlugin(val global: Global) extends Plugin {
             e.printStackTrace()
         }
       }
+    }
+
+    def show(what: Any) = {
+
+      val buffer = new StringWriter()
+      val writer = new PrintWriter(buffer)
+
+      val printers = new ASTPrinters(global, writer)
+      var printer = new printers.ASTPrinter
+
+
+      printer.print(what)
+      writer.flush()
+      buffer.toString
     }
   }
 }
