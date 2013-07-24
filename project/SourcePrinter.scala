@@ -6,6 +6,7 @@ object SourcePrinter extends Build
 {
 	lazy val main = Project("printPlugin", file(".")) settings(
 		name := "printPlugin",
+                //scalacOptions := List("-Ycompact-trees"),
 		organization in ThisBuild := "test.org",
 		version in ThisBuild := "0.1.0",
 		scalaVersion in ThisBuild := "2.10.2",

@@ -32,8 +32,10 @@ class PrintPlugin(val global: Global) extends Plugin {
       override def name = PrintPlugin.this.name
       def apply(unit: CompilationUnit) {
         try {
-          writeSourceCode(unit, unit.source.content.mkString, "originalSource")
-          writeSourceCode(unit, show(unit.body), "before_" + nextPhase)
+          //writeSourceCode(unit, unit.source.content.mkString, "originalSource")
+          val sourceCode = show(unit.body)
+          writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+          println(sourceCode)
         } catch {
           case e: Exception =>
             e.printStackTrace()
@@ -45,7 +47,7 @@ class PrintPlugin(val global: Global) extends Plugin {
   object afterTyper extends PrintPhaseComponent("typer", "patmat")
   //object afterParser extends PrintPhaseComponent("parser", "namer")
 
-  val components = List[PluginComponent](afterParser, afterTyper)
+  val components = List[PluginComponent](afterParser)
 
   override def processOptions(options: List[String], error: String => Unit) {
     for (option <- options) {
@@ -103,6 +105,7 @@ class PrintPlugin(val global: Global) extends Plugin {
         try {
           val sourceCode = show(unit.body)
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+          println(sourceCode)
         } catch {
           case e: Exception =>
             e.printStackTrace()

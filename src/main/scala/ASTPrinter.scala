@@ -31,11 +31,31 @@ class ASTPrinter extends global.TreePrinter(out) {
   private var currentOwner: Symbol = NoSymbol
   private var selectorType: Type = NoType
 
+  override def printModifiers(tree: Tree, mods: Modifiers): Unit = printFlags(
+    if (tree.symbol == NoSymbol) mods.flags else tree.symbol.flags, "" + (
+      if (tree.symbol == NoSymbol) mods.privateWithin
+      else if (tree.symbol.hasAccessBoundary) tree.symbol.privateWithin.name
+      else ""
+      )
+  )
+
+  //to skip all annotations
+  override def printFlags(flags: Long, privateWithin: String) {
+    val ASTPrinterFlags = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | IMPLICIT | SEALED | CASE | LAZY | LOCAL
+
+    var mask: Long = if (settings.debug.value) -1L else ASTPrinterFlags
+//    var mask: Long = if (settings.debug.value) -1L else PrintableFlags
+    //var mask: Long = 0
+    val s = flagsToString(flags & mask, privateWithin)
+    if (s != "") print(s + " ")
+  }
+
   override def printTree(tree: Tree) {
-    print("Hello, Vova!")
+    //System.out.println("Tree: " + showRaw(tree))
     tree match {
       case EmptyTree =>
-        print("<empty>")
+        //print("<empty>")
+        print("")
 
       case ClassDef(mods, name, tparams, impl) =>
         printAnnotations(tree)
@@ -50,8 +70,17 @@ class ASTPrinter extends global.TreePrinter(out) {
         print(if (mods.isDeferred) " <: " else " extends ", impl)
 
       case PackageDef(packaged, stats) =>
-        printAnnotations(tree)
-        print("package ", packaged); printColumn(stats, " {", ";", "}")
+        System.out.println("showRaw(packaged): " + showRaw(packaged))
+        System.out.println("showRaw(stats): " + showRaw(stats))
+
+        packaged match {
+          case Ident(name) if name == nme.EMPTY_PACKAGE_NAME =>
+            //printColumn(stats, " {", ";", "}")
+            printSeq(stats){print(_)}{print(";"); println()};
+          case _ =>
+            printAnnotations(tree)
+            print("package ", packaged); printColumn(stats, " {", ";", "}")
+        }
 
       case ModuleDef(mods, name, impl) =>
         printAnnotations(tree)
@@ -66,12 +95,26 @@ class ASTPrinter extends global.TreePrinter(out) {
         if (!mods.isDeferred)
           print(" = ", if (rhs.isEmpty) "_" else rhs)
 
-      case DefDef(mods, name, tparams, vparamss, tp, rhs) =>
-        printAnnotations(tree)
-        printModifiers(tree, mods)
-        print("def " + symName(tree, name))
-        printTypeParams(tparams); vparamss foreach printValueParams
-        printOpt(": ", tp); printOpt(" = ", rhs)
+      case dd @ DefDef(mods, name, tparams, vparamss, tp, rhs) =>
+        val sym = dd.symbol
+        //sym info doesn't set after parser
+        System.out.println("sym.name: " + sym.name.toString)
+
+//        System.out.println("sym.isMethod: " + sym.isMethod)
+//        System.out.println("sym.isVarargsMethod: " + sym.isVarargsMethod)
+//        System.out.println("sym.isMixinConstructor: " + sym.isMixinConstructor)
+//        System.out.println("sym.isConstructor: " + sym.isConstructor)
+//        System.out.println("sym.isAuxiliaryConstructor : " + sym.isAuxiliaryConstructor)
+//        System.out.println("sym.isPrimaryConstructor: " + sym.isPrimaryConstructor)
+//        System.out.println("sym.isStaticConstructor: " + sym.isStaticConstructor)
+//        System.out.println("sym.isClassConstructor: " + sym.isClassConstructor)
+//        System.out.println(showRaw("dd: " + dd))
+//        System.out.println("tree: " + showRaw(dd))
+            printAnnotations(tree)
+            printModifiers(tree, mods)
+            print("def " + symName(tree, name))
+            printTypeParams(tparams); vparamss foreach printValueParams
+            printOpt(": ", tp); printOpt(" = ", rhs)
 
       case TypeDef(mods, name, tparams, rhs) =>
         if (mods hasFlag (PARAM | DEFERRED)) {
@@ -229,8 +272,20 @@ class ASTPrinter extends global.TreePrinter(out) {
         print(backquotedPath(qualifier), ".", symName(tree, name))
 
       case id @ Ident(name) =>
-        val str = symName(tree, name)
-        print( if (id.isBackquoted) "`" + str + "`" else str )
+        if (!name.isEmpty) {
+          //System.out.println("nameIsNotEmpty!")
+          if (id.isEmpty) {
+            //System.out.println("idIsEmpty!")
+          } else {
+            //System.out.println("idIsNotEmpty")
+          }
+          val str = symName(tree, name)
+          //System.out.println("str: " + str)
+          print( if (id.isBackquoted) "`" + str + "`" else str ) }
+        else {
+          print("")
+          //System.out.println("nameIsEmpty!")
+        }
 
       case Literal(x) =>
         print(x.escapedStringValue)
@@ -287,7 +342,36 @@ class ASTPrinter extends global.TreePrinter(out) {
     }
   }
 
+  private def symNameInternal(tree: Tree, name: Name, decoded: Boolean): String = {
+    val sym = tree.symbol
+    if (sym.name.toString == nme.ERROR.toString) {
+      "<" + quotedName(name, decoded) + ": error>"
+    } else if (sym != null && sym != NoSymbol) {
+      //System.out.println("sym != null && sym != NoSymbol")
+      val prefix = if (sym.isMixinConstructor) "/*%s*/".format(quotedName(sym.owner.name, decoded)) else ""
+      var suffix = ""
+      if (settings.uniqid.value) suffix += ("#" + sym.id)
+      //if (settings.Yshowsymkinds.value) suffix += ("#" + sym.abbreviatedKindString)
+      prefix + quotedName(tree.symbol.decodedName) + suffix
+    } else {
+      //System.out.println("sym == null or sym == NoSymbol")
+      val str = quotedName(name, decoded)
+      //System.out.println("quotedName: " + str)
+      //if (sym == null) {
+        //System.out.println("sym is null")
+      //}
+      //if (sym == NoSymbol) {
+        //System.out.println("sym is NoSymbol")
+      //}
+      //if (name == nme.EMPTY_PACKAGE_NAME) {
+        //System.out.println("EMPTY_PACKAGE_NAME_FOUND")
+      //}
+      str
+    }
+  }
 
+  def decodedSymName(tree: Tree, name: Name) = symNameInternal(tree, name, true)
+  def symName(tree: Tree, name: Name) = symNameInternal(tree, name, false)
 
 
   override def print(args: Any*): Unit = args foreach {
