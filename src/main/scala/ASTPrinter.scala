@@ -426,7 +426,15 @@ class ASTPrinter extends global.TreePrinter(out) {
         print(templ)
 
       case AppliedTypeTree(tp, args) =>
-        print(tp); printRow(args, "[", ", ", "]")
+        //processing of repeated type
+        if (tp.exists{
+          case Select(_, name) => name == tpnme.REPEATED_PARAM_CLASS_NAME
+          case _ => false
+        } && !args.isEmpty) {
+          print(args(0), "*")
+        } else {
+          print(tp); printRow(args, "[", ", ", "]")
+        }
 
       case TypeBoundsTree(lo, hi) =>
         printOpt(" >: ", lo); printOpt(" <: ", hi)
