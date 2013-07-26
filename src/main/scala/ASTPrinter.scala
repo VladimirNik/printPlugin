@@ -84,6 +84,36 @@ class ASTPrinter extends global.TreePrinter(out) {
     printParam(tree, false)
   }
 
+  override def printAnnotations(tree: Tree) {
+    // SI-5885: by default this won't print annotations of not yet initialized symbols
+//    val annots = tree.symbol.annotations match {
+//      case Nil  => tree.asInstanceOf[MemberDef].mods.annotations
+//      case anns => anns
+//    }
+
+      val annots = tree.asInstanceOf[MemberDef].mods.annotations
+      annots foreach {
+        annot =>
+          val n @ New(id @ Ident(name)) = annot.find{
+            case New(Ident(_)) => true
+            case _ => false
+          } getOrElse(EmptyTree)
+          if (n.isEmpty) print("@"+annot+" ")
+          else {
+            val Apply(_, params) = annot
+            print("@", symName(id, name))
+            if (!params.isEmpty) {
+              print("(")
+              printSeq(params){print(_)}{print(", ")}
+              print(")")
+            }
+            print(" ")
+          }
+      }
+
+//    annots foreach (annot => print("@"+annot+" "))
+  }
+
   override def printTree(tree: Tree) {
     //System.out.println("Tree: " + showRaw(tree))
     tree match {
