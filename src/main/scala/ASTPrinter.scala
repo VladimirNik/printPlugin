@@ -50,6 +50,40 @@ class ASTPrinter extends global.TreePrinter(out) {
     if (s != "") print(s + " ")
   }
 
+  def printConstrParams(ts: List[ValDef], isConstr: Boolean) {
+    print("(")
+    if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
+    printSeq(ts){x => printParam(x, true)}{print(", ")}
+    print(")")
+  }
+
+  override def printValueParams(ts: List[ValDef]) {
+    print("(")
+    if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
+    printSeq(ts){printParam}{print(", ")}
+    print(")")
+  }
+
+  def printParam(tree: Tree, isConstr: Boolean) {
+    tree match {
+      case ValDef(mods, name, tp, rhs) =>
+        printPosition(tree)
+        printAnnotations(tree)
+        if (isConstr) {
+          printModifiers(tree, mods)
+        }
+        print(if (mods.isMutable && isConstr) "var " else if (isConstr) "val " else "", symName(tree, name)); printOpt(": ", tp); printOpt(" = ", rhs)
+      case TypeDef(mods, name, tparams, rhs) =>
+        printPosition(tree)
+        print(symName(tree, name))
+        printTypeParams(tparams); print(rhs)
+    }
+  }
+
+  override def printParam(tree: Tree) {
+    printParam(tree, false)
+  }
+
   override def printTree(tree: Tree) {
     //System.out.println("Tree: " + showRaw(tree))
     tree match {
@@ -57,7 +91,31 @@ class ASTPrinter extends global.TreePrinter(out) {
         //print("<empty>")
         print("")
 
+        //TODO - method to get primary constructor
+        //TODO - method to get auxilary constructor
+        //TODO - method to get defdef
+
       case ClassDef(mods, name, tparams, impl) =>
+        System.out.println("\nclassdef showRaw: " + showRaw(tree) + "\n")
+        System.out.println("\nmods: " + mods + "\n")
+        val Template(List(_*), self, methods) = impl
+
+        val templateVals = methods collect {
+          case ValDef(mods, name, _, _) => (name, mods)
+        }
+
+        val primaryConstr @ DefDef(cstrMods, _, tparams, List(vparams), tp, rhs) = methods collectFirst {
+          case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
+        } get
+
+      //TODO combine modifiers from vals and defs
+      //TODO remove duplicate annotations
+      //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
+        val printParams = (vparams, templateVals).zipped.map((x, y) =>
+          ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
+
+        printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
+
         printAnnotations(tree)
         printModifiers(tree, mods)
         val word =
@@ -66,12 +124,26 @@ class ASTPrinter extends global.TreePrinter(out) {
           else "class"
 
         print(word, " ", symName(tree, name))
+
         printTypeParams(tparams)
-        print(if (mods.isDeferred) " <: " else " extends ", impl)
+
+        //constructor's modifier
+        if (cstrMods.hasFlag(AccessFlags)) {
+          print(" ")
+          printModifiers(primaryConstr, cstrMods)
+        } else print(" ")
+
+        //constructor's params
+        if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
+          printConstrParams(printParams, true)
+          print(" ")
+        }
+
+        print(if (mods.isDeferred) "<: " else "extends ", impl)
 
       case PackageDef(packaged, stats) =>
-        System.out.println("showRaw(packaged): " + showRaw(packaged))
-        System.out.println("showRaw(stats): " + showRaw(stats))
+        //System.out.println("showRaw(packaged): " + showRaw(packaged))
+        //System.out.println("showRaw(stats): " + showRaw(stats))
 
         packaged match {
           case Ident(name) if name == nme.EMPTY_PACKAGE_NAME =>
@@ -87,7 +159,8 @@ class ASTPrinter extends global.TreePrinter(out) {
         printModifiers(tree, mods);
         print("object " + symName(tree, name), " extends ", impl)
 
-      case ValDef(mods, name, tp, rhs) =>
+      case vd @ ValDef(mods, name, tp, rhs) =>
+        System.out.println("vd showRaw: " + showRaw(vd))
         printAnnotations(tree)
         printModifiers(tree, mods)
         print(if (mods.isMutable) "var " else "val ", symName(tree, name))
@@ -97,7 +170,10 @@ class ASTPrinter extends global.TreePrinter(out) {
 
       case dd @ DefDef(mods, name, tparams, vparamss, tp, rhs) =>
         val sym = dd.symbol
+        System.out.println("Sym: " + sym)
+        System.out.println("sym == nosymbol: " + (sym == NoSymbol))
         //sym info doesn't set after parser
+        System.out.println("dd showRaw: " + showRaw(dd))
         System.out.println("sym.name: " + sym.name.toString)
 
 //        System.out.println("sym.isMethod: " + sym.isMethod)
@@ -155,8 +231,39 @@ class ASTPrinter extends global.TreePrinter(out) {
         //            print("AnyVal")
         //          }
         //          else {
-        printRow(parents, " with ")
-        if (!body.isEmpty) {
+
+      System.out.println("\n");
+      System.out.println("showRaw body: " + showRaw(body) + "\n")
+      val primaryCtr @ DefDef(_, _, _, _, _, Block(List(ap @ Apply(_, ctArgs)), _)) = body collectFirst {
+        case dd: DefDef => dd
+      } get
+
+      System.out.println("showRaw firstConstr: " + showRaw(primaryCtr) + "\n")
+
+      System.out.println("showRaw apply: " + showRaw(ap) + "\n")
+
+        val (clParent :: traits) = parents
+
+        print(clParent)
+        //pass parameters to extending class constructors
+        if (!ctArgs.isEmpty)
+          printRow(ctArgs, "(", ", ", ")")
+        printRow(traits, " with ")
+        //remove primary constr def and constr val and var defs
+        val (left, right) = body.filter{
+          case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR)
+          case EmptyTree => false
+          case _ => true
+        } span{case dd :DefDef => dd.name != nme.CONSTRUCTOR case _ => true}
+
+        System.out.println("\nleft: " + showRaw(left) + "\n")
+        System.out.println("\nright: " + showRaw(right) + "\n")
+
+        val modBody = left ::: right.drop(1)
+
+        if (!modBody.isEmpty) {
+          System.out.println("!modBody.isEmpty")
+          System.out.println("showRaw(modBody): " + showRaw(modBody))
           if (self.name != nme.WILDCARD) {
             print(" { ", self.name); printOpt(": ", self.tpt); print(" => ")
           } else if (!self.tpt.isEmpty) {
@@ -164,7 +271,7 @@ class ASTPrinter extends global.TreePrinter(out) {
           } else {
             print(" {")
           }
-          printColumn(body, "", ";", "}")
+          printColumn(modBody, "", ";", "}")
         }
         //          }
         currentOwner = currentOwner1
@@ -355,7 +462,8 @@ class ASTPrinter extends global.TreePrinter(out) {
       prefix + quotedName(tree.symbol.decodedName) + suffix
     } else {
       //System.out.println("sym == null or sym == NoSymbol")
-      val str = quotedName(name, decoded)
+      val str = if (nme.isConstructorName(name)) "this"
+        else quotedName(name, decoded)
       //System.out.println("quotedName: " + str)
       //if (sym == null) {
         //System.out.println("sym is null")
