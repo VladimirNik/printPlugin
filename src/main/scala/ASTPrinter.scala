@@ -126,6 +126,7 @@ class ASTPrinter extends global.TreePrinter(out) {
         //TODO - method to get defdef
 
       case ClassDef(mods, name, tparams, impl) =>
+        //TODO separate classes and traits
         System.out.println("\nclassdef showRaw: " + showRaw(tree) + "\n")
         System.out.println("\nmods: " + mods + "\n")
         val Template(List(_*), self, methods) = impl
@@ -134,18 +135,32 @@ class ASTPrinter extends global.TreePrinter(out) {
           case ValDef(mods, name, _, _) => (name, mods)
         }
 
-        val primaryConstr @ DefDef(cstrMods, _, tparams, List(vparams), tp, rhs) = methods collectFirst {
+        System.out.println("before primary constr")
+        System.out.println("methods: " + methods)
+
+        val primaryConstr = methods collectFirst {
           case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
-        } get
+        } getOrElse(null)
 
-      //TODO combine modifiers from vals and defs
-      //TODO remove duplicate annotations
-      //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
-        val printParams = (vparams, templateVals).zipped.map((x, y) =>
-          ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
+        val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
+        val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
+        val List(vparams) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
+        val tp = if (primaryConstr != null) primaryConstr.tpt else null
+        val rhs = if (primaryConstr != null) primaryConstr.rhs else null
 
-        printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
 
+          System.out.println("after primary constr")
+
+          //TODO combine modifiers from vals and defs
+          //TODO remove duplicate annotations
+          //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
+
+            val printParams = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
+              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
+              else null
+        if (primaryConstr != null) {
+          printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
+          }
         printAnnotations(tree)
         printModifiers(tree, mods)
         val word =
@@ -157,6 +172,7 @@ class ASTPrinter extends global.TreePrinter(out) {
 
         printTypeParams(tparams)
 
+      if (primaryConstr != null) {
         //constructor's modifier
         if (cstrMods.hasFlag(AccessFlags)) {
           print(" ")
@@ -168,6 +184,7 @@ class ASTPrinter extends global.TreePrinter(out) {
           printConstrParams(printParams, true)
           print(" ")
         }
+      } else print(" ")
 
         print(if (mods.isDeferred) "<: " else "extends ", impl)
 
@@ -255,6 +272,7 @@ class ASTPrinter extends global.TreePrinter(out) {
         }
 
       case Template(parents, self, body) =>
+        //TODO separate classes and templates
         val currentOwner1 = currentOwner
         if (tree.symbol != NoSymbol) currentOwner = tree.symbol.owner
         //          if (parents exists isReferenceToAnyVal) {
@@ -264,21 +282,47 @@ class ASTPrinter extends global.TreePrinter(out) {
 
       System.out.println("\n");
       System.out.println("showRaw body: " + showRaw(body) + "\n")
-      val primaryCtr @ DefDef(_, _, _, _, _, Block(List(ap @ Apply(_, ctArgs)), _)) = body collectFirst {
-        case dd: DefDef => dd
-      } get
+//      val primaryCtr @ DefDef(_, _, _, _, _, Block(List(ap @ Apply(_, ctArgs)), _)) = body collectFirst {
+//        case dd: DefDef => dd
+//      } getOrElse(null)
 
+        val primaryCtr = body collectFirst {
+          case dd: DefDef => dd
+        } getOrElse(null)
+
+      var ap: Apply = null
+      var ctArgs: List[Tree] = null
+
+      primaryCtr match {
+        case DefDef(_, _, _, _, _, Block(List(apply @ Apply(_, crtArs)), _)) =>
+          ap = apply;
+          ctArgs = crtArs
+        case _ =>
+      }
+
+      if (primaryCtr != null && !primaryCtr.isEmpty) {
       System.out.println("showRaw firstConstr: " + showRaw(primaryCtr) + "\n")
 
       System.out.println("showRaw apply: " + showRaw(ap) + "\n")
+      }
 
         val (clParent :: traits) = parents
+      System.out.println("clParent: " + clParent)
+      System.out.println("traits: " + traits)
 
         print(clParent)
+
+        if (primaryCtr != null && !primaryCtr.isEmpty) {
         //pass parameters to extending class constructors
         if (!ctArgs.isEmpty)
           printRow(ctArgs, "(", ", ", ")")
-        printRow(traits, " with ")
+        }
+        if (!traits.isEmpty) {
+        System.out.println("before printing with...")
+        System.out.println("traits size: " + traits.size)
+        printRow(traits, " with ", " with ", "")
+        System.out.println("after printing with...")
+        }
         //remove primary constr def and constr val and var defs
         val (left, right) = body.filter{
           case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR)
@@ -443,8 +487,16 @@ class ASTPrinter extends global.TreePrinter(out) {
           if (!args.isEmpty)
             printRow(args, "(", ",", ")")
         }
-        print(tree, if (tree.isType) " " else ": ")
-        printAnnot()
+        System.out.println("tpt.isEmpty: " + tpt.isEmpty)
+        System.out.println("tpt.tpe: " + tpt.tpe)
+        System.out.println("tpt.toString(): " + tpt.toString())
+
+        val unchecked = tpt match {
+          case Select(_, tname) => tname.toString() == "unchecked"
+          case _ => false
+        }
+        print(tree, if (tree.isType) " " else if (!unchecked) ": " else "")
+        if (!unchecked) printAnnot()
 
       case SingletonTypeTree(ref) =>
         print(ref, ".type")
