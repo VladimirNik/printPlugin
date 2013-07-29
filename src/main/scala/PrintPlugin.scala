@@ -23,29 +23,29 @@ class PrintPlugin(val global: Global) extends Plugin {
   var baseDir: String = System.getProperty("user.dir")
   var dirName = "sourceFromAST"
 
-  object afterParser extends PrintPhaseComponent("parser", "namer") {
-
-    override def newPhase(_prev: Phase) = new PrintPhase(_prev)
-
-    //TODO: refactor
-    class PrintPhase(prev: Phase) extends StdPhase(prev) {
-      override def name = PrintPlugin.this.name
-      def apply(unit: CompilationUnit) {
-        try {
-          //writeSourceCode(unit, unit.source.content.mkString, "originalSource")
-          val sourceCode = show(unit.body)
-          writeSourceCode(unit, sourceCode, "before_" + nextPhase)
-          println(sourceCode)
-        } catch {
-          case e: Exception =>
-            e.printStackTrace()
-        }
-      }
-    }
-  }
+//  object afterParser extends PrintPhaseComponent("parser", "namer") {
+//
+//    override def newPhase(_prev: Phase) = new PrintPhase(_prev)
+//
+//    //TODO: refactor
+//    class PrintPhase(prev: Phase) extends StdPhase(prev) {
+//      override def name = PrintPlugin.this.name
+//      def apply(unit: CompilationUnit) {
+//        try {
+//          //writeSourceCode(unit, unit.source.content.mkString, "originalSource")
+//          val sourceCode = show(unit.body)
+//          writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+//          println(sourceCode)
+//        } catch {
+//          case e: Exception =>
+//            e.printStackTrace()
+//        }
+//      }
+//    }
+//  }
 
   object afterTyper extends PrintPhaseComponent("typer", "patmat")
-  //object afterParser extends PrintPhaseComponent("parser", "namer")
+  object afterParser extends PrintPhaseComponent("parser", "namer")
 
   val components = List[PluginComponent](afterParser)
 
