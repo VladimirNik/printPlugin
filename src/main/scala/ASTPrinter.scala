@@ -106,12 +106,13 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       val annots = tree.asInstanceOf[MemberDef].mods.annotations
       annots foreach {
         annot =>
-          val n@New(id@Ident(name)) = annot.find {
+          val n = annot.find {
             case New(Ident(_)) => true
             case _ => false
           } getOrElse (EmptyTree)
           if (n.isEmpty) print("@" + annot + " ")
           else {
+            val New(id@Ident(name)) = n
             val Apply(_, params) = annot
             print("@", symName(id, name))
             if (!params.isEmpty) {
@@ -154,7 +155,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
           val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
-          val List(vparams) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
+          val List(vparams, _*) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
           val tp = if (primaryConstr != null) primaryConstr.tpt else null
           val rhs = if (primaryConstr != null) primaryConstr.rhs else null
 
@@ -165,9 +166,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val printParams = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
             ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
           else null
-//          if (primaryConstr != null) {
-//            printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
-//          }
+          //          if (primaryConstr != null) {
+          //            printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
+          //          }
           printAnnotations(tree)
           printModifiers(tree, mods)
           val word =
@@ -202,7 +203,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               printSeq(stats) {
                 print(_)
               } {
-                print(";"); println()
+                print(";");
+                println()
               };
             case _ =>
               printAnnotations(tree)
@@ -297,16 +299,18 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ =>
           }
 
-          val (clParent :: traits) = parents
-          print(clParent)
+          if (!parents.isEmpty) {
+            val (clParent :: traits) = parents
+            print(clParent)
 
-          if (primaryCtr != null && !primaryCtr.isEmpty) {
-            //pass parameters to extending class constructors
-            if (!ctArgs.isEmpty)
-              printRow(ctArgs, "(", ", ", ")")
-          }
-          if (!traits.isEmpty) {
-            printRow(traits, " with ", " with ", "")
+            if (primaryCtr != null && !primaryCtr.isEmpty) {
+              //pass parameters to extending class constructors
+              if (ctArgs != null && !ctArgs.isEmpty)
+                printRow(ctArgs, "(", ", ", ")")
+            }
+            if (!traits.isEmpty) {
+              printRow(traits, " with ", " with ", "")
+            }
           }
           //remove primary constr def and constr val and var defs
           val (left, right) = body.filter {
@@ -571,7 +575,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         print("// Scala source: " + unit.source + "\n")
         if (unit.body == null) print("<null>")
         else {
-          print(unit.body); println()
+          print(unit.body);
+          println()
         }
         println()
         out.flush()

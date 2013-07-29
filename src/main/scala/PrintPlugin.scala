@@ -109,6 +109,7 @@ class PrintPlugin(val global: Global) extends Plugin {
         } catch {
           case e: Exception =>
             e.printStackTrace()
+            throw e
         }
       }
     }
