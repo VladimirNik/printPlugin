@@ -71,8 +71,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     override def printValueParams(ts: List[ValDef]) {
       print("(")
-      System.out.println("ts.head.mods.flags: " + ts.head.mods.flags)
-      System.out.println("ts.head.mods.flags & IMPLICIT: " + (ts.head.mods.flags & IMPLICIT))
+//      if (!ts.isEmpty) {
+//        System.out.println("ts.head.mods.flags: " + ts.head.mods.flags)
+//        System.out.println("ts.head.mods.flags & IMPLICIT: " + (ts.head.mods.flags & IMPLICIT))
+//      } else {
+//        System.out.println("ts.head is empty")
+//      }
       if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
       printSeq(ts) {
         printParam
@@ -114,27 +118,37 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
       val annots = tree.asInstanceOf[MemberDef].mods.annotations
       annots foreach {
-        annot =>
-          val n = annot.find {
-            case New(Ident(_)) => true
-            case _ => false
-          } getOrElse (EmptyTree)
-          if (n.isEmpty) print("@" + annot + " ")
-          else {
-            val New(id@Ident(name)) = n
-            val Apply(_, params) = annot
-            print("@", symName(id, name))
-            if (!params.isEmpty) {
-              print("(")
-              printSeq(params) {
-                print(_)
-              } {
-                print(", ")
-              }
-              print(")")
-            }
-            print(" ")
-          }
+        ann =>
+          System.out.println("\nshow annotation: " + show(ann))
+          System.out.println("\nshowRaw annotation: " + showRaw(ann))
+      }
+//      annots foreach {
+//        annot =>
+//          val n = annot.find {
+//            case New(Ident(_)) => true
+//            case _ => false
+//          } getOrElse (EmptyTree)
+//          if (n.isEmpty) print("@",annot)//print("@" + annot + " ")
+//          else {
+//            val New(id@Ident(name)) = n
+//            val Apply(_, params) = annot
+//            print("@", symName(id, name))
+//            if (!params.isEmpty) {
+//              print("(")
+//              printSeq(params) {
+//                print(_)
+//              } {
+//                print(", ")
+//              }
+//              print(")")
+//            }
+//            print(" ")
+//          }
+//      }
+      annots foreach {
+        case Apply(Select(New(tree), p), args) => val ap = Apply(tree, args)
+          print("@", ap, " ")
+        case ann => print("@" + ann + " ")
       }
 
       //    annots foreach (annot => print("@"+annot+" "))
@@ -166,8 +180,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
         case ClassDef(mods, name, tparams, impl) =>
           //TODO separate classes and traits
-          System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-          System.out.println("show tree: " + show(tree) + "\n")
+          //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+          //System.out.println("show tree: " + show(tree) + "\n")
 
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -215,9 +229,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                   }
               }
             } else null
-//            val printParamss = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
+//            val printParamss2 = if (primaryConstr != null) (vparamss(0), templateVals).zipped.map((x, y) =>
 //              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
 //            else null
+//            System.out.println("printParamss: " + printParamss)
+//            System.out.println("printParamss2: " + printParamss2)
 
             if (primaryConstr != null) {
               //constructor's modifier
