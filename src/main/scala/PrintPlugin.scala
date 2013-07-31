@@ -103,7 +103,8 @@ class PrintPlugin(val global: Global) extends Plugin {
 
       def apply(unit: CompilationUnit) {
         try {
-          val sourceCode = show(unit.body)
+          val sourceCode = if (!unit.source.file.name.contains(".java")) show(unit.body)
+            else unit.source.content.mkString
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
           println(sourceCode)
         } catch {

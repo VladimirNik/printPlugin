@@ -131,6 +131,20 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       //    annots foreach (annot => print("@"+annot+" "))
     }
 
+    override def printTypeParams(ts: List[TypeDef]) {
+      if (!ts.isEmpty) {
+        print("["); printSeq(ts){ t =>
+          printAnnotations(t)
+          if (t.mods.hasFlag(CONTRAVARIANT)) {
+            print("-")
+          } else if (t.mods.hasFlag(COVARIANT)) {
+            print("+")
+          }
+          printParam(t)
+        }{print(", ")}; print("]")
+      }
+    }
+
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
@@ -143,32 +157,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
         case ClassDef(mods, name, tparams, impl) =>
           //TODO separate classes and traits
-          val Template(List(_*), self, methods) = impl
+          System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+          System.out.println("show tree: " + show(tree) + "\n")
 
-          val templateVals = methods collect {
-            case ValDef(mods, name, _, _) => (name, mods)
-          }
-
-          val primaryConstr = methods collectFirst {
-            case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
-          } getOrElse (null)
-
-          val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
-          val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
-          val List(vparams, _*) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
-          val tp = if (primaryConstr != null) primaryConstr.tpt else null
-          val rhs = if (primaryConstr != null) primaryConstr.rhs else null
-
-
-          //TODO combine modifiers from vals and defs
-          //TODO remove duplicate annotations
-          //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
-          val printParams = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
-            ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
-          else null
-          //          if (primaryConstr != null) {
-          //            printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
-          //          }
           printAnnotations(tree)
           printModifiers(tree, mods)
           val word =
@@ -180,18 +171,47 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           printTypeParams(tparams)
 
-          if (primaryConstr != null) {
-            //constructor's modifier
-            if (cstrMods.hasFlag(AccessFlags)) {
-              print(" ")
-              printModifiers(primaryConstr, cstrMods)
-            } else print(" ")
+          val Template(List(_*), self, methods) = impl
 
-            //constructor's params
-            if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
-              printConstrParams(printParams, true)
-              print(" ")
+          if (!mods.isTrait) {
+            val templateVals = methods collect {
+              case ValDef(mods, name, _, _) => (name, mods)
             }
+
+            val primaryConstr = methods collectFirst {
+              case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
+            } getOrElse (null)
+
+            val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
+            val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
+            val List(vparams, _*) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
+            val tp = if (primaryConstr != null) primaryConstr.tpt else null
+            val rhs = if (primaryConstr != null) primaryConstr.rhs else null
+
+
+            //TODO combine modifiers from vals and defs
+            //TODO remove duplicate annotations
+            //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
+            val printParams = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
+              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
+            else null
+            //          if (primaryConstr != null) {
+            //            printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
+            //          }
+
+            if (primaryConstr != null) {
+              //constructor's modifier
+              if (cstrMods.hasFlag(AccessFlags)) {
+                print(" ")
+                printModifiers(primaryConstr, cstrMods)
+              } else print(" ")
+
+              //constructor's params
+              if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
+                printConstrParams(printParams, true)
+                print(" ")
+              }
+            } else print(" ")
           } else print(" ")
 
           print(if (mods.isDeferred) "<: " else "extends ", impl)
@@ -226,7 +246,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             print(" = ", if (rhs.isEmpty) "_" else rhs)
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
-          val sym = dd.symbol
+          //val sym = dd.symbol
           //sym info doesn't set after parser
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -237,14 +257,19 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printOpt(" = ", rhs)
 
         case TypeDef(mods, name, tparams, rhs) =>
+          System.out.println("TypeDef found...")
           if (mods hasFlag (PARAM | DEFERRED)) {
+            System.out.println("\nif branch...\n")
             printAnnotations(tree)
             printModifiers(tree, mods);
+            //print("!!!")
             print("type ");
             printParam(tree)
           } else {
+            System.out.println("\nelse branch...\n")
             printAnnotations(tree)
             printModifiers(tree, mods);
+            //print("???")
             print("type " + symName(tree, name))
             printTypeParams(tparams);
             printOpt(" = ", rhs)
@@ -313,8 +338,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             }
           }
           //remove primary constr def and constr val and var defs
+          //right contains all constructors
           val (left, right) = body.filter {
             case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR)
+            case dd: DefDef => dd.name != nme.MIXIN_CONSTRUCTOR //remove $this$ from traits
             case EmptyTree => false
             case _ => true
           } span {
@@ -322,7 +349,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ => true
           }
 
-          val modBody = left ::: right.drop(1)
+          val modBody = left ::: right.drop(1)//List().drop(1) ==> List()
 
           if (!modBody.isEmpty) {
             if (self.name != nme.WILDCARD) {
@@ -543,7 +570,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //if (settings.Yshowsymkinds.value) suffix += ("#" + sym.abbreviatedKindString)
         prefix + quotedName(tree.symbol.decodedName) + suffix
       } else {
-        val str = if (nme.isConstructorName(name)) "this"
+        //val str = if (nme.isConstructorName(name)) "this"
+        val str = if (name == nme.CONSTRUCTOR) "this"
         else quotedName(name, decoded)
         str
       }
