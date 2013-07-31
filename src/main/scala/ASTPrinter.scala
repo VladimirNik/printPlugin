@@ -32,17 +32,24 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     private var currentOwner: Symbol = NoSymbol
     private var selectorType: Type = NoType
 
-    override def printModifiers(tree: Tree, mods: Modifiers): Unit = printFlags(
+    override def printModifiers(tree: Tree, mods: Modifiers): Unit = printModifiers(tree, mods, false)
+
+    def printModifiers(tree: Tree, mods: Modifiers, isCtr: Boolean): Unit = printFlags(
       if (tree.symbol == NoSymbol) mods.flags else tree.symbol.flags, "" + (
         if (tree.symbol == NoSymbol) mods.privateWithin
         else if (tree.symbol.hasAccessBoundary) tree.symbol.privateWithin.name
         else ""
-        )
+        ), isCtr
     )
 
     //to skip all annotations
     override def printFlags(flags: Long, privateWithin: String) {
-      val ASTPrinterFlags = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | IMPLICIT | SEALED | CASE | LAZY | LOCAL
+      printFlags(flags, privateWithin, false)
+    }
+
+    def printFlags(flags: Long, privateWithin: String, isCtr: Boolean) {
+      val base = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | SEALED | CASE | LAZY | LOCAL
+      val ASTPrinterFlags = if (isCtr) base else base | IMPLICIT
 
       var mask: Long = if (settings.debug.value) -1L else ASTPrinterFlags
       //    var mask: Long = if (settings.debug.value) -1L else PrintableFlags
@@ -64,6 +71,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     override def printValueParams(ts: List[ValDef]) {
       print("(")
+      System.out.println("ts.head.mods.flags: " + ts.head.mods.flags)
+      System.out.println("ts.head.mods.flags & IMPLICIT: " + (ts.head.mods.flags & IMPLICIT))
       if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
       printSeq(ts) {
         printParam
@@ -79,7 +88,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printPosition(tree)
           printAnnotations(tree)
           if (isConstr) {
-            printModifiers(tree, mods)
+            printModifiers(tree, mods, isConstr)
           }
           print(if (mods.isMutable && isConstr) "var " else if (isConstr) "val " else "", symName(tree, name));
           printOpt(": ", tp);
@@ -184,20 +193,31 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
             val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
             val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
-            val List(vparams, _*) = if (primaryConstr != null) primaryConstr.vparamss else List(null)
+            val vparamss = if (primaryConstr != null) primaryConstr.vparamss else null
             val tp = if (primaryConstr != null) primaryConstr.tpt else null
             val rhs = if (primaryConstr != null) primaryConstr.rhs else null
 
 
             //TODO combine modifiers from vals and defs
             //TODO remove duplicate annotations
-            //TODO (ASK) printing is based only on order of vals (how do we can change it?) - check name and validate size - or throw exception
-            val printParams = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
-              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
-            else null
-            //          if (primaryConstr != null) {
-            //            printParams.foreach(x => System.out.println("\nshowRaw(printParam): " + showRaw(x) + "\n"))
-            //          }
+            val printParamss = if (primaryConstr != null) {
+              vparamss map {
+                vparams =>
+                  if (vparams.isEmpty) vparams
+                  else vparams map {
+                    vparam =>
+                    val templateVal = templateVals find {
+                      _._1 == vparam.name
+                    } getOrElse null
+                    if (templateVal != null)
+                      ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, vparam.mods.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
+                      else vparam
+                  }
+              }
+            } else null
+//            val printParamss = if (primaryConstr != null) (vparams, templateVals).zipped.map((x, y) =>
+//              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
+//            else null
 
             if (primaryConstr != null) {
               //constructor's modifier
@@ -207,9 +227,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               } else print(" ")
 
               //constructor's params
-              if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
-                printConstrParams(printParams, true)
-                print(" ")
+              printParamss foreach { printParams =>
+                if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
+                  printConstrParams(printParams, true)
+                  print(" ")
+                }
               }
             } else print(" ")
           } else print(" ")
@@ -257,16 +279,13 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printOpt(" = ", rhs)
 
         case TypeDef(mods, name, tparams, rhs) =>
-          System.out.println("TypeDef found...")
           if (mods hasFlag (PARAM | DEFERRED)) {
-            System.out.println("\nif branch...\n")
             printAnnotations(tree)
             printModifiers(tree, mods);
             //print("!!!")
             print("type ");
             printParam(tree)
           } else {
-            System.out.println("\nelse branch...\n")
             printAnnotations(tree)
             printModifiers(tree, mods);
             //print("???")
@@ -328,11 +347,20 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             val (clParent :: traits) = parents
             print(clParent)
 
-            if (primaryCtr != null && !primaryCtr.isEmpty) {
-              //pass parameters to extending class constructors
-              if (ctArgs != null && !ctArgs.isEmpty)
-                printRow(ctArgs, "(", ", ", ")")
-            }
+//            if (primaryCtr != null && !primaryCtr.isEmpty) {
+              //pass parameters to super class constructors
+              //get all parameter lists
+              val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
+                ap filter {
+                  case apply @ Apply(_, args) => true
+                  case _ => false
+                } map {
+                  apply => val Apply(sel, ars) = apply
+                  ars
+                } reverse
+              } else List(List())
+              applyParamsList foreach {x: List[Tree] => if (!x.isEmpty) printRow(x, "(", ", ", ")")}
+//            }
             if (!traits.isEmpty) {
               printRow(traits, " with ", " with ", "")
             }
