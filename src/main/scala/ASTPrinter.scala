@@ -23,7 +23,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
   //TODO not optimal - bad solution
   //don't forget this method after ASTPrinter moving!!!
   def show(what: Any, generic: Boolean) = {
-
     val buffer = new StringWriter()
     val writer = new PrintWriter(buffer)
 
@@ -123,6 +122,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             printModifiers(tree, mods, isConstr)
           }
           print(if (mods.isMutable && isConstr) "var " else if (isConstr) "val " else "", symName(tree, name));
+          if (name.endsWith("_")) print(" ");
           printOpt(": ", tp);
           printOpt(" = ", rhs)
         case TypeDef(mods, name, tparams, rhs) =>
@@ -206,15 +206,19 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       tree match {
         case EmptyTree =>
           //print("<empty>")
-          print("")
+          //print("")
 
         //TODO - method to get primary constructor
         //TODO - method to get auxilary constructor
         //TODO - method to get defdef
 
         case ClassDef(mods, name, tparams, impl) =>
-          System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-          System.out.println("show tree (using global): " + global.show(tree) + "\n")
+
+          //TODO - current problem
+          if (name.toString().contains("DummyQuery4WhereClause")) {
+            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          }
 
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -260,8 +264,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                     {val newVD = ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
                     //System.out.println("newVD.name = " + newVD.name);
                     //System.out.println("newVD.mods = " + newVD.mods);
-                    System.out.println("vparam.mods.privateWithin = " + vparam.mods.privateWithin);
-                    System.out.println("templateVal._2.privateWithin = " + templateVal._2.privateWithin);
+                    //System.out.println("vparam.mods.privateWithin = " + vparam.mods.privateWithin);
+                    //System.out.println("templateVal._2.privateWithin = " + templateVal._2.privateWithin);
                       newVD}
                       else vparam
                   }
@@ -361,10 +365,21 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case LabelDef(name, params, rhs) =>
-          print(symName(tree, name)); printLabelParams(params);
-          contextStack.push(tree)
-          printBlock(rhs)
-          contextStack.pop()
+          if (name.contains("while$")) {
+            contextStack.push(tree)
+            val If(cond, thenp, elsep) = rhs
+            print("while (", cond, ") ")
+
+            val Block(list, wh) = thenp
+            printColumn(list, "", ";", "")
+
+            contextStack.pop()
+          } else {
+            print(symName(tree, name)); printLabelParams(params);
+            contextStack.push(tree)
+            printBlock(rhs)
+            contextStack.pop()
+          }
 
         case Import(expr, selectors) =>
           // Is this selector remapping a name (i.e, {name1 => name2})
@@ -419,6 +434,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //            if (primaryCtr != null && !primaryCtr.isEmpty) {
               //pass parameters to super class constructors
               //get all parameter lists
+              //TODO rewrite using recursive function
+              //this implementation is not correct
               val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
                 ap filter {
                   case apply @ Apply(_, args) => true
@@ -500,7 +517,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print("(", elem, ")*")
 
         case Bind(name, t) =>
-          print("(", symName(tree, name), " @ ", t, ")")
+          //Bind(tpnme.WILDCARD, EmptyTree)
+          if (t == EmptyTree) print("(", symName(tree, name), ")")
+          else print("(", symName(tree, name), " @ ", t, ")")
 
         case UnApply(fun, args) =>
           print(fun, " <unapply> "); printRow(args, "(", ", ", ")")
@@ -642,6 +661,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ => false
           } && !args.isEmpty) {
             print(args(0), "*")
+          } else if (tp match {
+            case Select(_, name) => name == tpnme.BYNAME_PARAM_CLASS_NAME
+            case _ => false
+          }) {
+            print("=> ", if (args.isEmpty) "()" else args(0))
           } else {
             print(tp);
             printRow(args, "[", ", ", "]")
