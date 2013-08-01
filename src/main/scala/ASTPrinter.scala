@@ -1,7 +1,7 @@
 package com.vladimir.nik.print.plugin.printer
 
 import com.vladimir.nik.print.plugin.PrintPlugin
-import java.io.PrintWriter
+import java.io.{StringWriter, PrintWriter}
 import scala.reflect.internal.Flags._
 import scala.tools.nsc
 import scala.tools.nsc.ast.Printers
@@ -18,6 +18,23 @@ import nsc.Global
 class ASTPrinters(val global: Global, val out: PrintWriter) {
 
   import global._
+
+  //TODO refactor show
+  //TODO not optimal - bad solution
+  //don't forget this method after ASTPrinter moving!!!
+  def show(what: Any, generic: Boolean) = {
+
+    val buffer = new StringWriter()
+    val writer = new PrintWriter(buffer)
+
+    val printers = new ASTPrinters(global, writer)
+    var printer = new printers.ASTPrinter
+
+
+    printer.print(what)
+    writer.flush()
+    buffer.toString
+  }
 
   class ASTPrinter extends global.TreePrinter(out) {
 
@@ -71,12 +88,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     override def printValueParams(ts: List[ValDef]) {
       print("(")
-//      if (!ts.isEmpty) {
-//        System.out.println("ts.head.mods.flags: " + ts.head.mods.flags)
-//        System.out.println("ts.head.mods.flags & IMPLICIT: " + (ts.head.mods.flags & IMPLICIT))
-//      } else {
-//        System.out.println("ts.head is empty")
-//      }
+      //TODO when we have constructor with implicit params first group of parameters
+      //always are not implicits - even if there are no other parameters ()(implicit val a:String ...)
       if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
       printSeq(ts) {
         printParam
@@ -117,11 +130,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       //    }
 
       val annots = tree.asInstanceOf[MemberDef].mods.annotations
-      annots foreach {
-        ann =>
-          System.out.println("\nshow annotation: " + show(ann))
-          System.out.println("\nshowRaw annotation: " + showRaw(ann))
-      }
 //      annots foreach {
 //        annot =>
 //          val n = annot.find {
@@ -168,6 +176,15 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       }
     }
 
+    def backquotedPath(t: Tree): String = {
+      t match {
+        case Select(qual, name) if name.isTermName  => "%s.%s".format(backquotedPath(qual), symName(t, name))
+        case Select(qual, name) if name.isTypeName  => "%s#%s".format(backquotedPath(qual), symName(t, name))
+        case Ident(name)                            => symName(t, name)
+        case _                                      => show(t, true)
+      }
+    }
+
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
@@ -179,7 +196,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //TODO - method to get defdef
 
         case ClassDef(mods, name, tparams, impl) =>
-          //TODO separate classes and traits
           //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
           //System.out.println("show tree: " + show(tree) + "\n")
 
@@ -284,7 +300,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             print(" = ", if (rhs.isEmpty) "_" else rhs)
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
-          //val sym = dd.symbol
           //sym info doesn't set after parser
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -519,6 +534,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           if (!qual.isEmpty) print(symName(tree, qual) + ".")
           print("this")
 
+//        case Select(apply: Apply, name) if (!settings.debug.value) =>
+//          print(apply,".",symName(tree, name))
+
         case Select(qual@New(tpe), name) if (!settings.debug.value) =>
           print(qual)
 
@@ -586,8 +604,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printOpt(" >: ", lo); printOpt(" <: ", hi)
 
         case ExistentialTypeTree(tpt, whereClauses) =>
-          print(tpt);
-          printColumn(whereClauses, " forSome { ", ";", "}")
+          print("(", tpt);
+          printColumn(whereClauses, " forSome { ", ";", "})")
 
         // SelectFromArray is no longer visible in reflect.internal.
         // eliminated until we figure out what we will do with both Printers and
