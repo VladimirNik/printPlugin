@@ -38,6 +38,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
   class ASTPrinter extends global.TreePrinter(out) {
 
+    val contextStack = scala.collection.mutable.Stack[Tree]()
+
     //this methods are here because they are private
     private def symFn[T](tree: Tree, f: Symbol => T, orElse: => T): T = tree.symbol match {
       case null | NoSymbol => orElse
@@ -51,7 +53,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     override def printModifiers(tree: Tree, mods: Modifiers): Unit = printModifiers(tree, mods, false)
 
-    def printModifiers(tree: Tree, mods: Modifiers, isCtr: Boolean): Unit = printFlags(
+    def printModifiers(tree: Tree, mods: Modifiers, isCtr: Boolean): Unit =
+      if (modsAccepted)
+      printFlags(
       if (tree.symbol == NoSymbol) mods.flags else tree.symbol.flags, "" + (
         if (tree.symbol == NoSymbol) mods.privateWithin
         else if (tree.symbol.hasAccessBoundary) tree.symbol.privateWithin.name
@@ -59,13 +63,18 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         ), isCtr
     )
 
+    def modsAccepted = getCurrentContext() match {
+      case _:ClassDef | _:ModuleDef | _:Template | _:PackageDef => true
+      case _ => false
+    }
+
     //to skip all annotations
     override def printFlags(flags: Long, privateWithin: String) {
       printFlags(flags, privateWithin, false)
     }
 
     def printFlags(flags: Long, privateWithin: String, isCtr: Boolean) {
-      val base = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | SEALED | CASE | LAZY | LOCAL
+      val base = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | SEALED | LAZY | LOCAL
       val ASTPrinterFlags = if (isCtr) base else base | IMPLICIT
 
       var mask: Long = if (settings.debug.value) -1L else ASTPrinterFlags
@@ -73,6 +82,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       //var mask: Long = 0
       val s = flagsToString(flags & mask, privateWithin)
       if (s != "") print(s + " ")
+      //case flag should be the last
+      val caseFlag = flagsToString(flags & CASE, privateWithin)
+      if (caseFlag != "") print(caseFlag + " ")
     }
 
     def printConstrParams(ts: List[ValDef], isConstr: Boolean) {
@@ -185,6 +197,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       }
     }
 
+    def getCurrentContext(): Tree = if (!contextStack.isEmpty) contextStack.top else null
+
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
@@ -196,8 +210,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //TODO - method to get defdef
 
         case ClassDef(mods, name, tparams, impl) =>
-          //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-          //System.out.println("show tree: " + show(tree) + "\n")
+          System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+          System.out.println("show tree (using global): " + global.show(tree) + "\n")
 
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -211,7 +225,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printTypeParams(tparams)
 
           val Template(List(_*), self, methods) = impl
-
+          contextStack.push(tree)
           if (!mods.isTrait) {
             val templateVals = methods collect {
               case ValDef(mods, name, _, _) => (name, mods)
@@ -269,8 +283,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           } else print(" ")
 
           print(if (mods.isDeferred) "<: " else "extends ", impl)
+          contextStack.pop()
 
         case PackageDef(packaged, stats) =>
+          contextStack.push(tree)
           packaged match {
             case Ident(name) if name == nme.EMPTY_PACKAGE_NAME =>
               //printColumn(stats, " {", ";", "}")
@@ -285,19 +301,24 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               print("package ", packaged);
               printColumn(stats, " {", ";", "}")
           }
+          contextStack.pop()
 
         case ModuleDef(mods, name, impl) =>
           printAnnotations(tree)
           printModifiers(tree, mods);
+          contextStack.push(tree)
           print("object " + symName(tree, name), " extends ", impl)
+          contextStack.pop()
 
         case vd@ValDef(mods, name, tp, rhs) =>
           printAnnotations(tree)
           printModifiers(tree, mods)
           print(if (mods.isMutable) "var " else "val ", symName(tree, name))
-          printOpt(": ", tp)
+          if (name.endsWith("_")) print(" "); printOpt(": ", tp)
+          contextStack.push(tree)
           if (!mods.isDeferred)
             print(" = ", if (rhs.isEmpty) "_" else rhs)
+          contextStack.pop()
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
           //sym info doesn't set after parser
@@ -306,8 +327,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print("def " + symName(tree, name))
           printTypeParams(tparams);
           vparamss foreach printValueParams
+          if (tparams.isEmpty && (vparamss.isEmpty || vparamss(0).isEmpty) && name.endsWith("_"))
+            print(" ")
           printOpt(": ", tp);
+          contextStack.push(tree)
           printOpt(" = ", rhs)
+          contextStack.pop()
 
         case TypeDef(mods, name, tparams, rhs) =>
           if (mods hasFlag (PARAM | DEFERRED)) {
@@ -322,11 +347,16 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             //print("???")
             print("type " + symName(tree, name))
             printTypeParams(tparams);
+            contextStack.push(tree)
             printOpt(" = ", rhs)
+            contextStack.pop()
           }
 
         case LabelDef(name, params, rhs) =>
-          print(symName(tree, name)); printLabelParams(params); printBlock(rhs)
+          print(symName(tree, name)); printLabelParams(params);
+          contextStack.push(tree)
+          printBlock(rhs)
+          contextStack.pop()
 
         case Import(expr, selectors) =>
           // Is this selector remapping a name (i.e, {name1 => name2})
@@ -420,13 +450,17 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             } else {
               print(" {")
             }
+            contextStack.push(tree)
             printColumn(modBody, "", ";", "}")
+            contextStack.pop()
           }
           //          }
           currentOwner = currentOwner1
 
         case Block(stats, expr) =>
+          contextStack.push(tree)
           printColumn(stats ::: List(expr), "{", ";", "}")
+          contextStack.pop()
 
         case Match(selector, cases) =>
           val selectorType1 = selectorType
@@ -447,7 +481,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             print("???")
           print(pat);
           printOpt(" if ", guard)
+          contextStack.push(tree)
           print(" => ", body)
+          contextStack.pop()
 
         case Alternative(trees) =>
           printRow(trees, "(", "| ", ")")
@@ -507,7 +543,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print("new ", tpe)
 
         case Typed(expr, tp) =>
-          print("(", expr, ": ", tp, ")")
+          tp match {
+            case Function(List(), EmptyTree) => print("(", expr, " _)") //func _
+            case _ => print("(", expr, ": ", tp, ")")
+          }
 
         case TypeApply(fun, targs) =>
           print(fun); printRow(targs, "[", ", ", "]")

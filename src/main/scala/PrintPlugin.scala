@@ -106,6 +106,7 @@ class PrintPlugin(val global: Global) extends Plugin {
           val sourceCode = if (!unit.source.file.name.contains(".java")) show(unit.body)
             else unit.source.content.mkString
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+          //println("showRaw(unit.body): " + showRaw(unit.body))
           println(sourceCode)
         } catch {
           case e: Exception =>
