@@ -83,7 +83,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       val s = flagsToString(flags & mask, privateWithin)
       if (s != "") print(s + " ")
       //case flag should be the last
-      val caseFlag = flagsToString(flags & CASE, privateWithin)
+      val caseFlag = flagsToString(flags & CASE)
+      //System.out.println("\nprivateWithin = " + privateWithin)
+      //System.out.println("\ns = " + s + "\n")
+      //System.out.println("\ncaseFlag = " + caseFlag + "\n")
       if (caseFlag != "") print(caseFlag + " ")
     }
 
@@ -254,7 +257,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                       _._1 == vparam.name
                     } getOrElse null
                     if (templateVal != null)
-                      ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, vparam.mods.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
+                    {val newVD = ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
+                    //System.out.println("newVD.name = " + newVD.name);
+                    //System.out.println("newVD.mods = " + newVD.mods);
+                    System.out.println("vparam.mods.privateWithin = " + vparam.mods.privateWithin);
+                    System.out.println("templateVal._2.privateWithin = " + templateVal._2.privateWithin);
+                      newVD}
                       else vparam
                   }
               }
