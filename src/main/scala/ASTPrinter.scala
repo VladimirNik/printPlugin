@@ -215,10 +215,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case ClassDef(mods, name, tparams, impl) =>
 
           //TODO - current problem
-          if (name.toString().contains("DummyQuery4WhereClause")) {
-            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            System.out.println("show tree (using global): " + global.show(tree) + "\n")
-          }
+          //if (name.toString().contains("DummyQuery4WhereClause")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          //}
 
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -462,6 +462,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
           //remove primary constr def and constr val and var defs
           //right contains all constructors
+          //TODO understand how filter works
           val (left, right) = body.filter {
             case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR)
             case dd: DefDef => dd.name != nme.MIXIN_CONSTRUCTOR //remove $this$ from traits
@@ -474,7 +475,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           val modBody = left ::: right.drop(1)//List().drop(1) ==> List()
 
-          if (!modBody.isEmpty) {
+          //System.out.println(if (modBody.isEmpty) "modBody is empty" else "modBody is not empty")
+          //System.out.println("left: " + left)
+          //System.out.println("right: " + right + "\n")
+
+          if (!modBody.isEmpty || !self.isEmpty) {
             if (self.name != nme.WILDCARD) {
               print(" { ", self.name);
               printOpt(": ", self.tpt);
@@ -628,7 +633,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case Literal(x) =>
-          print(x.escapedStringValue)
+          //if x is Constant check type and convert value
+          //System.out.println("x.value: " + x.value)
+          //System.out.println("x.tpe: " + x.tpe)
+          val printValue = x.escapedStringValue + (if (x.value.isInstanceOf[Float]) "F" else "") //correct printing of Float
+          print(printValue)
 
         case tt: TypeTree =>
           if ((tree.tpe eq null) || (doPrintPositions && tt.original != null)) {
