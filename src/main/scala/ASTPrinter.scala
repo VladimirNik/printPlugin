@@ -431,20 +431,29 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             val (clParent :: traits) = parents
             print(clParent)
 
+            //TODO remove all tree.filter (reimplement using Traversers)
+            def getConstrParams(tree: Tree, cargs: List[List[Tree]]): List[List[Tree]] = {
+              tree match {
+                case Apply(inTree, args) =>
+                  getConstrParams(inTree, cargs):+args //not very good decision
+                case _ => cargs
+              }
+            }
+            val applyParamsList = getConstrParams(ap, Nil)
+
 //            if (primaryCtr != null && !primaryCtr.isEmpty) {
               //pass parameters to super class constructors
               //get all parameter lists
-              //TODO rewrite using recursive function
               //this implementation is not correct
-              val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
-                ap filter {
-                  case apply @ Apply(_, args) => true
-                  case _ => false
-                } map {
-                  apply => val Apply(sel, ars) = apply
-                  ars
-                } reverse
-              } else List(List())
+//              val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
+//                ap filter {
+//                  case apply @ Apply(_, args) => true
+//                  case _ => false
+//                } map {
+//                  apply => val Apply(sel, ars) = apply
+//                  ars
+//                } reverse
+//              } else List(List())
               applyParamsList foreach {x: List[Tree] => if (!x.isEmpty) printRow(x, "(", ", ", ")")}
 //            }
             if (!traits.isEmpty) {
