@@ -77,15 +77,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       val ASTPrinterFlags = if (isCtr) base else base | IMPLICIT
 
       var mask: Long = if (settings.debug.value) -1L else ASTPrinterFlags
-      //    var mask: Long = if (settings.debug.value) -1L else PrintableFlags
+      //var mask: Long = if (settings.debug.value) -1L else PrintableFlags
       //var mask: Long = 0
       val s = flagsToString(flags & mask, privateWithin)
       if (s != "") print(s + " ")
       //case flag should be the last
       val caseFlag = flagsToString(flags & CASE)
-      //System.out.println("\nprivateWithin = " + privateWithin)
-      //System.out.println("\ns = " + s + "\n")
-      //System.out.println("\ncaseFlag = " + caseFlag + "\n")
       if (caseFlag != "") print(caseFlag + " ")
     }
 
@@ -145,36 +142,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       //    }
 
       val annots = tree.asInstanceOf[MemberDef].mods.annotations
-//      annots foreach {
-//        annot =>
-//          val n = annot.find {
-//            case New(Ident(_)) => true
-//            case _ => false
-//          } getOrElse (EmptyTree)
-//          if (n.isEmpty) print("@",annot)//print("@" + annot + " ")
-//          else {
-//            val New(id@Ident(name)) = n
-//            val Apply(_, params) = annot
-//            print("@", symName(id, name))
-//            if (!params.isEmpty) {
-//              print("(")
-//              printSeq(params) {
-//                print(_)
-//              } {
-//                print(", ")
-//              }
-//              print(")")
-//            }
-//            print(" ")
-//          }
-//      }
       annots foreach {
         case Apply(Select(New(tree), p), args) => val ap = Apply(tree, args)
           print("@", ap, " ")
         case ann => print("@" + ann + " ")
       }
-
-      //    annots foreach (annot => print("@"+annot+" "))
     }
 
     override def printTypeParams(ts: List[TypeDef]) {
@@ -205,8 +177,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
-          //print("<empty>")
-          //print("")
 
         //TODO - method to get primary constructor
         //TODO - method to get auxilary constructor
@@ -261,12 +231,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                       _._1 == vparam.name
                     } getOrElse null
                     if (templateVal != null)
-                    {val newVD = ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
-                    //System.out.println("newVD.name = " + newVD.name);
-                    //System.out.println("newVD.mods = " + newVD.mods);
-                    //System.out.println("vparam.mods.privateWithin = " + vparam.mods.privateWithin);
-                    //System.out.println("templateVal._2.privateWithin = " + templateVal._2.privateWithin);
-                      newVD}
+                      ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
                       else vparam
                   }
               }
@@ -274,8 +239,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //            val printParamss2 = if (primaryConstr != null) (vparamss(0), templateVals).zipped.map((x, y) =>
 //              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
 //            else null
-//            System.out.println("printParamss: " + printParamss)
-//            System.out.println("printParamss2: " + printParamss2)
 
             if (primaryConstr != null) {
               //constructor's modifier
@@ -350,13 +313,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           if (mods hasFlag (PARAM | DEFERRED)) {
             printAnnotations(tree)
             printModifiers(tree, mods);
-            //print("!!!")
             print("type ");
             printParam(tree)
           } else {
             printAnnotations(tree)
             printModifiers(tree, mods);
-            //print("???")
             print("type " + symName(tree, name))
             printTypeParams(tparams);
             contextStack.push(tree)
@@ -404,14 +365,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           //TODO separate classes and templates
           val currentOwner1 = currentOwner
           if (tree.symbol != NoSymbol) currentOwner = tree.symbol.owner
-          //          if (parents exists isReferenceToAnyVal) {
-          //            print("AnyVal")
-          //          }
-          //          else {
-
-          //      val primaryCtr @ DefDef(_, _, _, _, _, Block(List(ap @ Apply(_, ctArgs)), _)) = body collectFirst {
-          //        case dd: DefDef => dd
-          //      } getOrElse(null)
+          //if (parents exists isReferenceToAnyVal) {
+          //  print("AnyVal")
+          //}
+          //  else {
 
           val primaryCtr = body collectFirst {
             case dd: DefDef => dd
@@ -441,21 +398,20 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             }
             val applyParamsList = getConstrParams(ap, Nil)
 
-//            if (primaryCtr != null && !primaryCtr.isEmpty) {
-              //pass parameters to super class constructors
-              //get all parameter lists
-              //this implementation is not correct
-//              val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
-//                ap filter {
-//                  case apply @ Apply(_, args) => true
-//                  case _ => false
-//                } map {
-//                  apply => val Apply(sel, ars) = apply
-//                  ars
-//                } reverse
-//              } else List(List())
-              applyParamsList foreach {x: List[Tree] => if (!x.isEmpty) printRow(x, "(", ", ", ")")}
-//            }
+            //pass parameters to super class constructors
+            //get all parameter lists
+            //this implementation is not correct
+            //val applyParamsList = if (ctArgs != null && !ctArgs.isEmpty){
+                //ap filter {
+                  //case apply @ Apply(_, args) => true
+                  //case _ => false
+                //} map {
+                  //apply => val Apply(sel, ars) = apply
+                  //ars
+                //} reverse
+              //} else List(List())
+            applyParamsList foreach {x: List[Tree] => if (!x.isEmpty) printRow(x, "(", ", ", ")")}
+
             if (!traits.isEmpty) {
               printRow(traits, " with ", " with ", "")
             }
@@ -475,10 +431,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           val modBody = left ::: right.drop(1)//List().drop(1) ==> List()
 
-          //System.out.println(if (modBody.isEmpty) "modBody is empty" else "modBody is not empty")
-          //System.out.println("left: " + left)
-          //System.out.println("right: " + right + "\n")
-
           if (!modBody.isEmpty || !self.isEmpty) {
             if (self.name != nme.WILDCARD) {
               print(" { ", self.name);
@@ -493,7 +445,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             printColumn(modBody, "", ";", "}")
             contextStack.pop()
           }
-          //          }
           currentOwner = currentOwner1
 
         case Block(stats, expr) =>
@@ -614,8 +565,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           if (!qual.isEmpty) print(symName(tree, qual) + ".")
           print("this")
 
-//        case Select(apply: Apply, name) if (!settings.debug.value) =>
-//          print(apply,".",symName(tree, name))
+        //case Select(apply: Apply, name) if (!settings.debug.value) =>
+        //print(apply,".",symName(tree, name))
 
         case Select(qual@New(tpe), name) if (!settings.debug.value) =>
           print(qual)
@@ -633,9 +584,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case Literal(x) =>
-          //if x is Constant check type and convert value
-          //System.out.println("x.value: " + x.value)
-          //System.out.println("x.tpe: " + x.tpe)
+          //processing Float constants
           val printValue = x.escapedStringValue + (if (x.value.isInstanceOf[Float]) "F" else "") //correct printing of Float
           print(printValue)
 
