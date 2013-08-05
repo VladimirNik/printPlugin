@@ -72,13 +72,13 @@ class PrintPlugin(val global: Global) extends Plugin {
     //default dir path
     //val defaultDir = "."
     val defaultDir = System.getProperty("user.dir")
-    System.out.println("defaultDir: " + defaultDir)
+    //System.out.println("defaultDir: " + defaultDir)
     val sbtSourcePath = "src/main/scala"
 
     val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
     val genSourcePath =
         currentFilePath.replaceFirst(defaultDir, defaultDir + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
-    System.out.println("genSourcePath: " + genSourcePath)
+    //System.out.println("genSourcePath: " + genSourcePath)
 
     val dir = new File(genSourcePath)
     dir.mkdirs()
@@ -114,7 +114,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             else unit.source.content.mkString
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
           //println("showRaw(unit.body): " + showRaw(unit.body))
-          //println(sourceCode)
+          println(sourceCode)
         } catch {
           case e: Exception =>
             e.printStackTrace()
