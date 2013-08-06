@@ -60,7 +60,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         else if (tree.symbol.hasAccessBoundary) tree.symbol.privateWithin.name
         else ""
         ), isCtr
-    )
+      //we need to print implicits independently of context
+    ) else if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
 
     def modsAccepted = getCurrentContext() match {
       case _:ClassDef | _:ModuleDef | _:Template | _:PackageDef => true
