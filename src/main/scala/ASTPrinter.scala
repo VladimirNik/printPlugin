@@ -580,7 +580,13 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case Bind(name, t) =>
           //Bind(tpnme.WILDCARD, EmptyTree)
           if (t == EmptyTree) print("(", symName(tree, name), ")")
+          else if (t.exists{
+            case _:Star => true
+            case _ => false
+          }) print(symName(tree, name), " @ ", t)
           else print("(", symName(tree, name), " @ ", t, ")")
+          //TODO try this variant
+          //else print(symName(tree, name), " @ ", t)
 
         case UnApply(fun, args) =>
           print(fun, " <unapply> "); printRow(args, "(", ", ", ")")
