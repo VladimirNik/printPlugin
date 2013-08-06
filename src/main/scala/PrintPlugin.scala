@@ -11,6 +11,7 @@ import com.vladimir.nik.print.plugin.printer.ASTPrinters
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
   val dirNameOpt = "dir-name:"
+  //val projectDirOpt = "project-dir:"
 }
 
 class PrintPlugin(val global: Global) extends Plugin {
@@ -22,6 +23,7 @@ class PrintPlugin(val global: Global) extends Plugin {
 
   var baseDir: String = System.getProperty("user.dir")
   var dirName = "sourceFromAST"
+  //var projectDir: String = ""
 
 //  object afterParser extends PrintPhaseComponent("parser", "namer") {
 //
@@ -55,6 +57,8 @@ class PrintPlugin(val global: Global) extends Plugin {
         baseDir = option.substring(baseDirectoryOpt.length)
       } else if (option.startsWith(dirNameOpt)) {
         dirName = option.substring(dirNameOpt.length)
+      //} else if (option.startsWith(projectDirOpt)) {
+      //  projectDir = option.substring(projectDirOpt.length)
       } else {
           error("Option not understood: "+option)
       }
@@ -68,10 +72,13 @@ class PrintPlugin(val global: Global) extends Plugin {
     //default dir path
     //val defaultDir = "."
     val defaultDir = System.getProperty("user.dir")
+    //System.out.println("defaultDir: " + defaultDir)
     val sbtSourcePath = "src/main/scala"
 
     val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
-    val genSourcePath = currentFilePath.replaceFirst(sbtSourcePath, dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
+    val genSourcePath =
+        currentFilePath.replaceFirst(defaultDir, defaultDir + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
+    //System.out.println("genSourcePath: " + genSourcePath)
 
     val dir = new File(genSourcePath)
     dir.mkdirs()
@@ -107,7 +114,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             else unit.source.content.mkString
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
           //println("showRaw(unit.body): " + showRaw(unit.body))
-          //println(sourceCode)
+          println(sourceCode)
         } catch {
           case e: Exception =>
             e.printStackTrace()

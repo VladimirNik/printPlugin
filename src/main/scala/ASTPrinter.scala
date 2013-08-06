@@ -36,7 +36,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
   }
 
   class ASTPrinter extends global.TreePrinter(out) {
-
+    //TODO maybe we need to pass this stack when explicitly run show inside print
     val contextStack = scala.collection.mutable.Stack[Tree]()
 
     //this methods are here because they are private
@@ -60,7 +60,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         else if (tree.symbol.hasAccessBoundary) tree.symbol.privateWithin.name
         else ""
         ), isCtr
-    )
+      //we need to print implicits independently of context
+    ) else if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
 
     def modsAccepted = getCurrentContext() match {
       case _:ClassDef | _:ModuleDef | _:Template | _:PackageDef => true
@@ -185,9 +186,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case ClassDef(mods, name, tparams, impl) =>
 
           //TODO - current problem
-          //if (name.toString().contains("DummyQuery4WhereClause")) {
-            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          //if (name.toString().contains("LowPriorityGeneric")) {
+            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            System.out.println("show tree (using global): " + global.show(tree) + "\n")
           //}
 
           printAnnotations(tree)
@@ -286,6 +287,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case vd@ValDef(mods, name, tp, rhs) =>
+          //if (name.toString() == ("x$11")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          //}
           printAnnotations(tree)
           printModifiers(tree, mods)
           print(if (mods.isMutable) "var " else "val ", symName(tree, name))
@@ -296,7 +301,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
-          //sym info doesn't set after parser
+          //sym info isn't set after parser
+          //if (name.toString().contains("mkCompoundTpt")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          //}
           printAnnotations(tree)
           printModifiers(tree, mods)
           print("def " + symName(tree, name))
@@ -306,10 +315,14 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             print(" ")
           printOpt(": ", tp);
           contextStack.push(tree)
-          printOpt(" = ", rhs)
+          printOpt(" = " + (if (mods.hasFlag(MACRO)) "macro " else ""), rhs)
           contextStack.pop()
 
         case TypeDef(mods, name, tparams, rhs) =>
+          //if (name.toString().contains("$u2200")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+          //}
           if (mods hasFlag (PARAM | DEFERRED)) {
             printAnnotations(tree)
             printModifiers(tree, mods);
@@ -453,10 +466,44 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case Match(selector, cases) =>
+//          def insertBraces(body: =>Unit) {
+//            selector match {
+//              case m: Match =>
+//                print("(")
+//                body
+//                print(")")
+//              case _ => body
+//            }
+//          }
+
+          //insert braces if match is inner
+          //make this function available for other casses
+          //passing required type for checking
+          def insertBraces(body: =>Unit) {
+            if (contextStack.exists{
+              _.isInstanceOf[Match]
+            }) {
+                print("(")
+                body
+                print(")")
+            } else body
+          }
+
           val selectorType1 = selectorType
           selectorType = selector.tpe
-          print(selector);
-          printColumn(cases, " match {", "", "}")
+          tree match {
+            case Match(EmptyTree, cs) =>
+              printColumn(cases, "{", "", "}")
+            case _ =>
+              insertBraces {
+                contextStack.push(tree)
+                print(selector);
+                contextStack.pop()
+
+                printColumn(cases, " match {", "", "}")
+              }
+          }
+
           selectorType = selectorType1
 
         case CaseDef(pat, guard, body) =>
@@ -479,12 +526,19 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printRow(trees, "(", "| ", ")")
 
         case Star(elem) =>
-          print("(", elem, ")*")
+          //print("(", elem, ")*")
+          print(elem, "*")
 
         case Bind(name, t) =>
           //Bind(tpnme.WILDCARD, EmptyTree)
           if (t == EmptyTree) print("(", symName(tree, name), ")")
+          else if (t.exists{
+            case _:Star => true
+            case _ => false
+          }) print(symName(tree, name), " @ ", t)
           else print("(", symName(tree, name), " @ ", t, ")")
+          //TODO try this variant
+          //else print(symName(tree, name), " @ ", t)
 
         case UnApply(fun, args) =>
           print(fun, " <unapply> "); printRow(args, "(", ", ", ")")
@@ -572,7 +626,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print(qual)
 
         case Select(qualifier, name) =>
-          print(backquotedPath(qualifier), ".", symName(tree, name))
+          qualifier match {
+            case _: Match => print("(", backquotedPath(qualifier), ").", symName(tree, name))
+            case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
+          }
 
         case id@Ident(name) =>
           if (!name.isEmpty) {
@@ -606,8 +663,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
           val unchecked = tpt match {
+              //TODO rewrite
             case Select(_, tname) => tname.toString() == "unchecked"
-            case _ => false
+            //c: @unchecked match {
+            case tname => tname.toString() == "unchecked"
+            //case _ => false
           }
           print(tree, if (tree.isType) " " else if (!unchecked) ": " else "")
           if (!unchecked) printAnnot()
@@ -615,8 +675,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case SingletonTypeTree(ref) =>
           print(ref, ".type")
 
+        //type $u2200[P[_]] = $u00AC[$u2203[scala.AnyRef {
+          //type λ[X] = $u00AC[P[X]]
+        //}#λ]]
+        //TODO change and see the three if tree.tree
         case SelectFromTypeTree(qualifier, selector) =>
-          print(qualifier, "#", symName(tree, selector))
+          print("(", qualifier, ")#", symName(tree, selector))
 
         case CompoundTypeTree(templ) =>
           print(templ)
