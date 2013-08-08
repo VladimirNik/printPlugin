@@ -175,6 +175,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     def getCurrentContext(): Tree = if (!contextStack.isEmpty) contextStack.top else null
 
+    def removeAnyRef(trees: List[Tree]) = trees filter {
+      case Select(Ident(sc), name) => name == "AnyRef" && sc == "scala"
+      case _ => true
+    }
+
+
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
@@ -202,7 +208,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           printTypeParams(tparams)
 
-          val Template(List(_*), self, methods) = impl
+          val Template(parents @ List(_*), self, methods) = impl
           contextStack.push(tree)
           if (!mods.isTrait) {
             val templateVals = methods collect {
@@ -258,7 +264,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             } else print(" ")
           } else print(" ")
 
-          print(if (mods.isDeferred) "<: " else "extends ", impl)
+          val parentsWAnyRef = removeAnyRef(parents)
+          print(if (mods.isDeferred) "<: " else
+          //if (!parentsWAnyRef.isEmpty)
+          "extends "
+          // else ""
+           , impl)
           contextStack.pop()
 
         case PackageDef(packaged, stats) =>
@@ -398,8 +409,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ =>
           }
 
-          if (!parents.isEmpty) {
-            val (clParent :: traits) = parents
+          val parentsWAnyRef = parents//removeAnyRef(parents)
+          if (!parentsWAnyRef.isEmpty) {
+            val (clParent :: traits) = parentsWAnyRef
             print(clParent)
 
             //TODO remove all tree.filter (reimplement using Traversers)
