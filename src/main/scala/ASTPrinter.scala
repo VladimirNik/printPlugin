@@ -299,6 +299,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           if (!mods.isDeferred)
             print(" = ", if (rhs.isEmpty) "_" else rhs)
           contextStack.pop()
+          val a: (=> Int) => Int = null
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
           //sym info isn't set after parser
@@ -591,14 +592,35 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case Typed(expr, tp) =>
           tp match {
             case Function(List(), EmptyTree) => print("(", expr, " _)") //func _
-            case _ => print("(", expr, ": ", tp, ")")
+            case _ => print("((", expr, "): ", tp, ")") //parenteses required when (a match {}) : Type
           }
 
         case TypeApply(fun, targs) =>
           print(fun); printRow(targs, "[", ", ", "]")
 
         case Apply(fun, vargs) =>
-          print(fun); printRow(vargs, "(", ", ", ")")
+          //processing methods ended on colon with multiple args list//
+          //TODO see processing of methods with multiple arguments lists and named *:
+          //example:
+//          def t[A,B](as: List[A]) = {
+//            println("hello")
+//            ((Map.empty[B, List[A]]) /: as){ (nels, a) => println(""); (nels)}
+//          }
+//         by default results in:
+//        {
+//          val x$1 = Map.empty[B, List[A]];
+//          as.$div$colon(x$1)
+//        }(((nels, a) => {
+//          println("");
+//          nels
+//        }))
+          tree match {
+            case Apply(Block(l1 @ List(sVD :ValDef), a1 @ Apply(Select(_, methodName), l2 @ List(Ident(iVDName)))), l3 @ List(_))
+              if sVD.mods.hasFlag(SYNTHETIC) && methodName.toString.endsWith("$colon") && (sVD.name == iVDName) =>
+                val printBlock = Block(l1, Apply(a1, l3))
+                print(printBlock)
+            case _ => print(fun); printRow(vargs, "(", ", ", ")")
+          }
 
         case ApplyDynamic(qual, vargs) =>
           print("<apply-dynamic>(", qual, "#", tree.symbol.nameString)
@@ -686,20 +708,51 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print(templ)
 
         case AppliedTypeTree(tp, args) =>
-          //processing of repeated type
-          if (tp.exists {
-            case Select(_, name) => name == tpnme.REPEATED_PARAM_CLASS_NAME
-            case _ => false
-          } && !args.isEmpty) {
-            print(args(0), "*")
-          } else if (tp match {
-            case Select(_, name) => name == tpnme.BYNAME_PARAM_CLASS_NAME
-            case _ => false
-          }) {
-            print("=> ", if (args.isEmpty) "()" else args(0))
+          //TODO find function types
+          //get name of base type
+          //val functions = 0 to 27 map { "Function" + _ }
+          //if (functions.contains(nameOfType) ...
+          //for name => ...
+          //TODO (TOASK) find stadart solution - now it's possuble that another Function redefined
+
+          //TODO move it to class declarations
+          val functionName = "Function"
+          val funcTypeNames = 0 to 22 map { "Function" + _ }
+          //System.out.println("funcTypeNames: " + funcTypeNames)
+
+          def isFunctionType =
+            tp match {
+              //_root_.scala.Function0[String]
+              case Select(qual, name) => funcTypeNames.contains(name.toString)
+              //Function0[String]
+              case Ident(name) => funcTypeNames.contains(name.toString)
+              case _ => false
+            }
+
+          if (isFunctionType) {
+            print("(")
+            printRow(args.init, "(", ", ", ")")
+            print(" => ", args.last, ")")
           } else {
-            print(tp);
-            printRow(args, "[", ", ", "]")
+            val typ = tree.tpe
+            //System.out.println("typ: " + typ)
+            val sym = tree.symbol
+            //System.out.println("sym: " + sym)
+            //processing of repeated type
+            if (tp.exists {
+              case Select(_, name) => name == tpnme.REPEATED_PARAM_CLASS_NAME
+              case _ => false
+            } && !args.isEmpty) {
+              print(args(0), "*")
+            } else if (tp match {
+              case Select(_, name) => name == tpnme.BYNAME_PARAM_CLASS_NAME
+              case _ => false
+            }) {
+              print("=> ", if (args.isEmpty) "()" else args(0))
+            } else {
+              print(tp);
+              printRow(args, "[", ", ", "]")
+            }
           }
 
         case TypeBoundsTree(lo, hi) =>
