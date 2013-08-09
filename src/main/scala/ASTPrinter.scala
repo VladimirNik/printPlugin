@@ -61,7 +61,13 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         else ""
         ), isCtr
       //we need to print implicits independently of context
-    ) else if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
+    ) else {
+        //TODO refactor
+        if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
+        if(mods.hasFlag(CASE)) printFlags(CASE, "", isCtr)
+        if(mods.hasFlag(LAZY)) printFlags(LAZY, "", isCtr)
+      }
+    //TODO create else branch and if Lazy, and case
 
     def modsAccepted = getCurrentContext() match {
       case _:ClassDef | _:ModuleDef | _:Template | _:PackageDef => true
@@ -74,6 +80,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     }
 
     def printFlags(flags: Long, privateWithin: String, isCtr: Boolean) {
+      //TODO parse ABSOVERRIDE
       val base = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | SEALED | LAZY | LOCAL
       val ASTPrinterFlags = if (isCtr) base else base | IMPLICIT
 
@@ -85,6 +92,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       //case flag should be the last
       val caseFlag = flagsToString(flags & CASE)
       if (caseFlag != "") print(caseFlag + " ")
+      val absOverrideFlag = flagsToString(flags & ABSOVERRIDE)
+      if (absOverrideFlag != "") print("abstract override ")
     }
 
     def printConstrParams(ts: List[ValDef], isConstr: Boolean) {
@@ -176,7 +185,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     def getCurrentContext(): Tree = if (!contextStack.isEmpty) contextStack.top else null
 
     def removeAnyRef(trees: List[Tree]) = trees filter {
-      case Select(Ident(sc), name) => name == "AnyRef" && sc == "scala"
+      //TODO try without first line
+      case Select(Ident(sc), name) => !((name.toString == "AnyRef") && (sc.toString == "scala"))
+      case Ident(name) => name.toString != "AnyRef"
       case _ => true
     }
 
@@ -190,12 +201,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //TODO - method to get defdef
 
         case ClassDef(mods, name, tparams, impl) =>
-
-          //TODO - current problem
-          //if (name.toString().contains("LowPriorityGeneric")) {
-            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            System.out.println("show tree (using global): " + global.show(tree) + "\n")
-          //}
 
           printAnnotations(tree)
           printModifiers(tree, mods)
@@ -265,11 +270,15 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           } else print(" ")
 
           val parentsWAnyRef = removeAnyRef(parents)
-          print(if (mods.isDeferred) "<: " else
-          //if (!parentsWAnyRef.isEmpty)
-          "extends "
-          // else ""
-           , impl)
+          //TODO - current problem
+          //if (name.toString().contains("TestLazy")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+            //System.out.println("parents: " + parents)
+            //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
+          //}
+          print(if (mods.isDeferred) "<: " else if (!parentsWAnyRef.isEmpty) "extends "
+            else "", impl)
           contextStack.pop()
 
         case PackageDef(packaged, stats) =>
@@ -291,10 +300,19 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case ModuleDef(mods, name, impl) =>
+
           printAnnotations(tree)
           printModifiers(tree, mods);
+          val Template(parents @ List(_*), self, methods) = impl
+          val parentsWAnyRef = removeAnyRef(parents)
+          //if (name.toString().contains("Scalaz")) {
+            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
+            //System.out.println("parents: " + parents)
+            //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
+          //}
           contextStack.push(tree)
-          print("object " + symName(tree, name), " extends ", impl)
+          print("object " + symName(tree, name), if (!parentsWAnyRef.isEmpty) " extends " else " ", impl)
           contextStack.pop()
 
         case vd@ValDef(mods, name, tp, rhs) =>
@@ -331,10 +349,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case TypeDef(mods, name, tparams, rhs) =>
-          //if (name.toString().contains("$u2200")) {
-            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
-          //}
+//          if (name.toString().contains("Disj")) {
+//            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
+//            System.out.println("show tree (using global): " + global.show(tree) + "\n")
+//          }
           if (mods hasFlag (PARAM | DEFERRED)) {
             printAnnotations(tree)
             printModifiers(tree, mods);
@@ -409,7 +427,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ =>
           }
 
-          val parentsWAnyRef = parents//removeAnyRef(parents)
+          val parentsWAnyRef = removeAnyRef(parents)
           if (!parentsWAnyRef.isEmpty) {
             val (clParent :: traits) = parentsWAnyRef
             print(clParent)
@@ -631,6 +649,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               if sVD.mods.hasFlag(SYNTHETIC) && methodName.toString.endsWith("$colon") && (sVD.name == iVDName) =>
                 val printBlock = Block(l1, Apply(a1, l3))
                 print(printBlock)
+            //TODO find more general way to include matches, ...
+            case Apply(_: If, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
             case _ => print(fun); printRow(vargs, "(", ", ", ")")
           }
 
