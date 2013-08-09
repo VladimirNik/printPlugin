@@ -114,7 +114,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             else unit.source.content.mkString
           writeSourceCode(unit, sourceCode, "before_" + nextPhase)
           //println("showRaw(unit.body): " + showRaw(unit.body))
-          //println(sourceCode)
+          println(sourceCode)
         } catch {
           case e: Exception =>
             e.printStackTrace()
