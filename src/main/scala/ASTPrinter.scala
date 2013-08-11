@@ -654,7 +654,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //          nels
 //        }))
           tree match {
-            case Apply(Block(l1 @ List(sVD :ValDef), a1 @ Apply(Select(_, methodName), l2 @ List(Ident(iVDName)))), l3 @ List(_))
+            case Apply(Block(l1 @ List(sVD :ValDef), a1 @ Apply(Select(_, methodName), l2 @ List(Ident(iVDName)))), l3 @ List(_*))
               if sVD.mods.hasFlag(SYNTHETIC) && methodName.toString.endsWith("$colon") && (sVD.name == iVDName) =>
                 val printBlock = Block(l1, Apply(a1, l3))
                 print(printBlock)
