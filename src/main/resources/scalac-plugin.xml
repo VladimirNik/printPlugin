@@ -1,4 +1,4 @@
 <plugin>
-  <name>printplugin</name>
+  <name>printPlugin</name>
   <classname>com.vladimir.nik.print.plugin.PrintPlugin</classname>
 </plugin>
