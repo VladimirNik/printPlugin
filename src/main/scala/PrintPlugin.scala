@@ -11,6 +11,7 @@ import com.vladimir.nik.print.plugin.printer.ASTPrinters
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
   val dirNameOpt = "dir-name:"
+  val overSrcOpt = "oversrc"
   //val projectDirOpt = "project-dir:"
 }
 
@@ -23,6 +24,7 @@ class PrintPlugin(val global: Global) extends Plugin {
 
   var baseDir: String = System.getProperty("user.dir")
   var dirName = "sourceFromAST"
+  var overrideSrc = false
   //var projectDir: String = ""
 
 //  object afterParser extends PrintPhaseComponent("parser", "namer") {
@@ -59,7 +61,9 @@ class PrintPlugin(val global: Global) extends Plugin {
         dirName = option.substring(dirNameOpt.length)
       //} else if (option.startsWith(projectDirOpt)) {
       //  projectDir = option.substring(projectDirOpt.length)
-      } else {
+      } else if (option.endsWith(overSrcOpt)) {
+        overrideSrc = true
+      } else{
           error("Option not understood: "+option)
       }
     }
@@ -73,18 +77,20 @@ class PrintPlugin(val global: Global) extends Plugin {
     //val defaultDir = "."
     val defaultDir = System.getProperty("user.dir")
     //System.out.println("defaultDir: " + defaultDir)
-    val sbtSourcePath = "src/main/scala"
+    //val sbtSourcePath = "src/main/scala"
 
     val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
-    val genSourcePath =
-        currentFilePath.replaceFirst(defaultDir, defaultDir + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
+    System.out.println(" === getting path info: ===")
+    System.out.println("currentFilePath: " + currentFilePath)
+    val genSourcePath = if (overrideSrc) currentFilePath
+      else currentFilePath.replaceFirst(defaultDir, defaultDir + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
     //System.out.println("genSourcePath: " + genSourcePath)
-
+    System.out.println("genSourcePath: " + genSourcePath)
     val dir = new File(genSourcePath)
     dir.mkdirs()
 
     val filePath = genSourcePath + File.separator + unit.source.file.name
-
+    System.out.println("filePath: " + filePath)
     val writer = new PrintWriter(new File(filePath))
     try {
       writer.write(sourceCode)
