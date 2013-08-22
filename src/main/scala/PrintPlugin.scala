@@ -120,7 +120,7 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
           this.synchronized {
-            val sourceCode = "class testing" + unit.source.file.name + Thread.currentThread().getId
+            val sourceCode = "class testing" + unit.source.file.name.substring(0, 6) + Thread.currentThread().getId
             //val sourceCode = if (!unit.source.file.name.contains(".java")) show(unit.body)
             //  else unit.source.content.mkString
             println("------- Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", hashCode = "+ System.identityHashCode(this) + ", processId = "+  ManagementFactory.getRuntimeMXBean().getName() + ") -------")
