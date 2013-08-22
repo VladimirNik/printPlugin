@@ -125,7 +125,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             //  else unit.source.content.mkString
             println("------- Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", hashCode = "+ System.identityHashCode(this) + ", processId = "+  ManagementFactory.getRuntimeMXBean().getName() + ") -------")
             println("before sleep of === " + Thread.currentThread().getId + " ===")
-            Thread.sleep(10000);
+            //Thread.sleep(10000);
             writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             println("after sleep of === " + Thread.currentThread().getId + " ===")
             //println("showRaw(unit.body): " + showRaw(unit.body))
