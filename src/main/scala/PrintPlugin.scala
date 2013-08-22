@@ -7,6 +7,7 @@ import nsc.plugins.Plugin
 import nsc.plugins.PluginComponent
 import java.io.{StringWriter, PrintWriter, File}
 import com.vladimir.nik.print.plugin.printer.ASTPrinters
+import java.lang.management.ManagementFactory
 
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
@@ -119,10 +120,10 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
           this.synchronized {
-            val sourceCode = "testing"
+            val sourceCode = "class testing" + unit.source.file.name + Thread.currentThread().getId
             //val sourceCode = if (!unit.source.file.name.contains(".java")) show(unit.body)
             //  else unit.source.content.mkString
-            println("------- Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", hashCode = "+ System.identityHashCode(this) +") -------")
+            println("------- Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", hashCode = "+ System.identityHashCode(this) + ", processId = "+  ManagementFactory.getRuntimeMXBean().getName() + ") -------")
             println("before sleep of === " + Thread.currentThread().getId + " ===")
             Thread.sleep(10000);
             writeSourceCode(unit, sourceCode, "before_" + nextPhase)
