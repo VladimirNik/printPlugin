@@ -124,6 +124,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             println("------ Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", this = "+ this +") -------")
             writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             //println("showRaw(unit.body): " + showRaw(unit.body))
+            //
             println(sourceCode)
             println("----------------------------------------------")
           }
