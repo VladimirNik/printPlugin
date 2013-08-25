@@ -26,7 +26,7 @@ class PrintPlugin(val global: Global) extends Plugin {
   var dirName = "sourceFromAST"
   var overrideSrc = false
   //var projectDir: String = ""
-
+//
 //  object afterParser extends PrintPhaseComponent("parser", "namer") {
 //
 //    override def newPhase(_prev: Phase) = new PrintPhase(_prev)
