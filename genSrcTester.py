@@ -27,7 +27,7 @@ filename = sys.argv[-1]
 print("dbuildExec: " + dbuildExec)
 print("filename: " + filename)
 #uncomment this
-#call([dbuildExec, filename])
+call([dbuildExec, filename])
 
 names = []
 uriNames = []
