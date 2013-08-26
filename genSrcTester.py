@@ -27,7 +27,7 @@ filename = sys.argv[-1]
 print("dbuildExec: " + dbuildExec)
 print("filename: " + filename)
 #uncomment this
-call([dbuildExec, filename])
+#call([dbuildExec, filename])
 
 names = []
 uriNames = []
@@ -51,9 +51,51 @@ for prName in names:
 print("prKeys: ")
 print(prKeys)
 
+prCodes = {}
+
+print("")
+print("==============================================")
+print("Compiling projects with regenerated sources...")
+print("==============================================")
+print("")
+
+errorsInCommands = 0
 for prName in names:
    if not (printPlugin.lower() in prName.lower()):
        #(cd myPath/ && exec sbt "run arg1")
+       print("----------------------------")
+       print("   Processing " + prName)
+       print("----------------------------")
        command = "(cd " + dbuildProjects + prKeys.get(prName, prName) + " && sbt compile)"
        print(command)
-       os.system(command)
+       #os.system(command)
+       commandOutput = os.system(command)
+       if commandOutput != 0:
+          errorsInCommands = errorsInCommands + 1
+       prCodes[prName] = commandOutput
+       #commandOutput = os.popen(command).read() #.split('\n')
+       #print("commandOutput: ")
+       #print(commandOutput)
+
+print("")
+print("==============================================")
+print("                  Results:                    ")
+print("==============================================")
+print(prCodes)
+print("")
+for prName in names:
+    if not (printPlugin.lower() in prName.lower()):
+       #print("Project: " + prName + ", prCode: " + str(prCodes.get(prName)))
+       if (prCodes.get(prName) != 0):
+          print("Project: " + prName + " ===> compilation failed <===")
+       else:
+          print("Project: " + prName + " ===> compilation is successful <===")
+       print("Path: " + dbuildProjects + prKeys.get(prName, prName))
+       print("")
+
+if errorsInCommands==1:
+    print(str(errorsInCommands) + " project has errors during compilation.")
+elif errorsInCommands>0:
+    print(str(errorsInCommands) + " projects have errors during compilation.")
+else:
+    print("All projects compiled successfully.")
