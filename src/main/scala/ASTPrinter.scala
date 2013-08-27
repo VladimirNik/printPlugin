@@ -184,13 +184,25 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     def getCurrentContext(): Tree = if (!contextStack.isEmpty) contextStack.top else null
 
-    def removeTypeFromList(trees: List[Tree], typesToRemove: List[String]) = trees filter {
+    def removeDefaultTypesFromList(trees: List[Tree])(classesToRemove: List[String])(traitsToRemove: List[String]) =
+      removeDefaultTraitsFromList(removeDefaultClassesFromList(trees, classesToRemove), traitsToRemove)
+
+    def removeDefaultClassesFromList(trees: List[Tree], classesToRemove: List[String]) = trees filter {
       //TODO try without first line
-      case Select(Ident(sc), name) => !((typesToRemove.contains(name.toString)) && (sc.toString == "scala"))
-      case Ident(name) => !typesToRemove.contains(name.toString)
+      case Select(Ident(sc), name) => !((classesToRemove.contains(name.toString)) && (sc.toString == "scala"))
+      //case Ident(name) => !classesToRemove.contains(name.toString)
       case _ => true
     }
 
+    def removeDefaultTraitsFromList(trees: List[Tree], traitsToRemove: List[String]): List[Tree] =
+      trees match {
+        case Nil => trees
+        case list : List[Tree] => list.last match {
+          case Select(Ident(sc), name) if ((traitsToRemove.contains(name.toString)) && (sc.toString == "scala"))
+            => removeDefaultTraitsFromList(list.init, traitsToRemove)
+          case _ => list
+         }
+      }
 
     override def printTree(tree: Tree) {
       tree match {
@@ -269,13 +281,18 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             } else print(" ")
           } else print(" ")
 
-          val printedParents = removeTypeFromList(parents, if (mods.hasFlag(CASE)) List("AnyRef", "Product", "Serializable") else List("AnyRef"))
+          //get trees without default classes and traits (when they are last)
+          val printedParents = removeDefaultTypesFromList(parents)(List("AnyRef"))(if (mods.hasFlag(CASE)) List("Product", "Serializable") else Nil)
+          //removeDefaultClassesFromList(parents, if (mods.hasFlag(CASE)) List("AnyRef", "Product", "Serializable") else List("AnyRef"))
           //TODO - current problem
           //if (name.toString().contains("TestLazy")) {
+            System.out.println("=== In Class Def ===")
             System.out.println("name: " + name)
             System.out.println("showRaw tree: " + showRaw(tree))
             System.out.println("show tree (using global): " + global.show(tree))
             System.out.println("parents: " + parents + "\n")
+            System.out.println("printedParents: " + printedParents + "\n")
+            System.out.println("=========")
             //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
           //}
           print(if (mods.isDeferred) "<: " else if (!printedParents.isEmpty) "extends "
@@ -305,12 +322,15 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printAnnotations(tree)
           printModifiers(tree, mods);
           val Template(parents @ List(_*), self, methods) = impl
-          val parentsWAnyRef = removeTypeFromList(parents, List("AnyRef"))
+          val parentsWAnyRef = removeDefaultClassesFromList(parents, List("AnyRef"))
           //if (name.toString().contains("Scalaz")) {
+            System.out.println("=== In Module Def ===")
             System.out.println("name: " + name)
             System.out.println("showRaw tree: " + showRaw(tree))
             System.out.println("show tree (using global): " + global.show(tree))
             System.out.println("parents: " + parents + "\n")
+            System.out.println("parentsWAnyRef: " + parentsWAnyRef + "\n")
+            System.out.println("=========")
             //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
           //}
           contextStack.push(tree)
@@ -433,8 +453,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             getCurrentContext() match {
               //val example: Option[AnyRef => Product1[Any] with AnyRef] = ... - CompoundTypeTree with template
               case _: CompoundTypeTree => parents
-              case ClassDef(mods, name, _, _) if mods.hasFlag(CASE) => removeTypeFromList(parents, List("AnyRef", "Product", "Serializable"))
-              case _ => removeTypeFromList(parents, List("AnyRef"))
+              case ClassDef(mods, name, _, _) if mods.hasFlag(CASE) => removeDefaultTypesFromList(parents)(List("AnyRef"))(List("Product", "Serializable"))
+              case _ => removeDefaultClassesFromList(parents, List("AnyRef"))
             }
 
           if (!printedParents.isEmpty) {
