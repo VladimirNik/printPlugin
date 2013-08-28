@@ -213,7 +213,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //TODO - method to get defdef
 
         case ClassDef(mods, name, tparams, impl) =>
-
+          contextStack.push(tree)
           printAnnotations(tree)
           printModifiers(tree, mods)
           val word =
@@ -226,7 +226,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printTypeParams(tparams)
 
           val Template(parents @ List(_*), self, methods) = impl
-          contextStack.push(tree)
+          //contextStack.push(tree)
           if (!mods.isTrait) {
             val templateVals = methods collect {
               case ValDef(mods, name, _, _) => (name, mods)
@@ -295,6 +295,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             System.out.println("=========")
             //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
           //}
+
+          //pre-init block possible only if there are printed parents
           print(if (mods.isDeferred) "<: " else if (!printedParents.isEmpty) "extends "
             else "", impl)
           contextStack.pop()
@@ -318,7 +320,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case ModuleDef(mods, name, impl) =>
-
+          contextStack.push(tree)
           printAnnotations(tree)
           printModifiers(tree, mods);
           val Template(parents @ List(_*), self, methods) = impl
@@ -333,7 +335,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             System.out.println("=========")
             //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
           //}
-          contextStack.push(tree)
+          //contextStack.push(tree)
           print("object " + symName(tree, name), if (!parentsWAnyRef.isEmpty) " extends " else " ", impl)
           contextStack.pop()
 
@@ -427,6 +429,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case Template(parents, self, body) =>
+          System.out.println("in Template...")
           //TODO separate classes and templates
           val currentOwner1 = currentOwner
           if (tree.symbol != NoSymbol) currentOwner = tree.symbol.owner
@@ -441,13 +444,38 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           var ap: Apply = null
           var ctArgs: List[Tree] = null
+          var presuperVals: List[Tree] = null
 
+
+//          primaryCtr match {
+//            case DefDef(_, _, _, _, _, Block(List(apply@Apply(_, crtArs)), _)) =>
+//              ap = apply;
+//              ctArgs = crtArs
+//            case _ =>
+//          }
+
+        //TODO refactor it
           primaryCtr match {
-            case DefDef(_, _, _, _, _, Block(List(apply@Apply(_, crtArs)), _)) =>
-              ap = apply;
-              ctArgs = crtArs
+            case DefDef(_, _, _, _, _, Block(ctBody @ List(_*), _)) =>
+              ctBody collectFirst {
+                  case apply@Apply(_, crtArs) =>
+                    ap = apply
+                    ctArgs = crtArs
+              }
+              presuperVals = ctBody filter {
+                _ match {
+                  case vd:ValDef => vd.mods.hasFlag(PRESUPER)
+                  case _ => false
+                }
+              }
+//              ap = apply;
+//              ctArgs = crtArs
             case _ =>
           }
+
+          System.out.println("ap: " + ap)
+          System.out.println("ctArgs: " + ctArgs)
+          System.out.println("presuperVals: " + presuperVals)
 
           val printedParents = //if (!getCurrentContext().isInstanceOf[TypeDef]) removeTypeFromList(parents) else parents
             getCurrentContext() match {
@@ -456,6 +484,17 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               case ClassDef(mods, name, _, _) if mods.hasFlag(CASE) => removeDefaultTypesFromList(parents)(List("AnyRef"))(List("Product", "Serializable"))
               case _ => removeDefaultClassesFromList(parents, List("AnyRef"))
             }
+
+          //pre-init block representation
+          if (presuperVals != null && !presuperVals.isEmpty) {
+            print("{")
+            printColumn(presuperVals, "", ";", "")
+            print("} " + (if (!printedParents.isEmpty) "with " else ""))
+          }
+          //if pre-init params are presented
+          //print {
+          //print vals
+          //print } with
 
           if (!printedParents.isEmpty) {
             val (clParent :: traits) = printedParents
@@ -493,7 +532,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           //right contains all constructors
           //TODO understand how filter works
           val (left, right) = body.filter {
-            case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR)
+            //remove valdefs defined in constructor and pre-init block
+            case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR) && !vd.mods.hasFlag(PRESUPER)
             case dd: DefDef => dd.name != nme.MIXIN_CONSTRUCTOR //remove $this$ from traits
             case EmptyTree => false
             case _ => true
@@ -674,6 +714,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //          nels
 //        }))
           tree match {
+            //processing of methods started with colons x :\ list
             case Apply(Block(l1 @ List(sVD :ValDef), a1 @ Apply(Select(_, methodName), l2 @ List(Ident(iVDName)))), l3 @ List(_*))
               if sVD.mods.hasFlag(SYNTHETIC) && methodName.toString.endsWith("$colon") && (sVD.name == iVDName) =>
                 val printBlock = Block(l1, Apply(a1, l3))
@@ -710,7 +751,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
         case Select(qualifier, name) =>
           qualifier match {
-            case _: Match => print("(", backquotedPath(qualifier), ").", symName(tree, name))
+            case _: Match | _: If => print("(", backquotedPath(qualifier), ").", symName(tree, name))
             case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
           }
 
