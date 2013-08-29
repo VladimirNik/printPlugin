@@ -108,7 +108,19 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     }
 
     override def printValueParams(ts: List[ValDef]) {
-      print("(")
+      printValueParams(ts, false)
+    }
+
+    def printValueParams(ts: List[ValDef], isFuncTree: Boolean) {
+      //val a: Int => Int = implicit x => x //there shouldn't be paranthesis
+      val printParanthesis = !isFuncTree || {
+        ts match {
+          case List(vd: ValDef) => !vd.mods.hasFlag(IMPLICIT)
+          case _ => true
+        }
+      }
+
+      if (printParanthesis) print("(")
       //TODO when we have constructor with implicit params first group of parameters
       //always are not implicits - even if there are no other parameters ()(implicit val a:String ...)
       if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
@@ -117,7 +129,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       } {
         print(", ")
       }
-      print(")")
+      if (printParanthesis) print(")")
     }
 
     def printParam(tree: Tree, isConstr: Boolean) {
@@ -272,8 +284,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               } else print(" ")
 
               //constructor's params
+              System.out.println("printParamss: " + printParamss)
               printParamss foreach { printParams =>
-                if (!printParams.isEmpty || cstrMods.hasFlag(AccessFlags)) {
+                //don't print single empty constructor param list
+                if (!(printParams.isEmpty && printParamss.size == 1) || cstrMods.hasFlag(AccessFlags)) {
                   printConstrParams(printParams, true)
                   print(" ")
                 }
@@ -402,6 +416,14 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             printColumn(list, "", ";", "")
 
             contextStack.pop()
+          } else if (name.contains("doWhile$")) {
+            contextStack.push(tree)
+            val Block(bodyList: List[Tree], ifCond @ If(cond, thenp, elsep)) = rhs
+            print("do ")
+            printColumn(bodyList, "", ";", "")
+            print(" while (", cond, ") ")
+            //TODO - see match
+            contextStack.pop()
           } else {
             print(symName(tree, name)); printLabelParams(params);
             contextStack.push(tree)
@@ -522,7 +544,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                   //ars
                 //} reverse
               //} else List(List())
-            applyParamsList foreach {x: List[Tree] => if (!x.isEmpty) printRow(x, "(", ", ", ")")}
+            applyParamsList foreach {x: List[Tree] => if (!(x.isEmpty && applyParamsList.size == 1)) printRow(x, "(", ", ", ")")}
 
             if (!traits.isEmpty) {
               printRow(traits, " with ", " with ", "")
@@ -591,13 +613,21 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
           val selectorType1 = selectorType
           selectorType = selector.tpe
+
+          val printParanthesis = selector match {
+            case _: If | _: Match | _: Try | _: Annotated => true
+            case _ => false
+          }
+
           tree match {
             case Match(EmptyTree, cs) =>
               printColumn(cases, "{", "", "}")
             case _ =>
               insertBraces {
                 contextStack.push(tree)
+                if (printParanthesis) print("(")
                 print(selector);
+                if (printParanthesis) print(")")
                 contextStack.pop()
 
                 printColumn(cases, " match {", "", "}")
@@ -648,7 +678,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
         case Function(vparams, body) =>
           print("(");
-          printValueParams(vparams);
+          printValueParams(vparams, true);
           print(" => ", body, ")")
           if (printIds && tree.symbol != null) print("#" + tree.symbol.id)
 
@@ -720,10 +750,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                 val printBlock = Block(l1, Apply(a1, l3))
                 print(printBlock)
             //TODO find more general way to include matches, ...
-            case Apply(_: If, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
+            case Apply(_: If, _) | Apply(_: Try, _) | Apply(_: Match, _) | Apply(_: LabelDef, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
             case _ => print(fun); printRow(vargs, "(", ", ", ")")
           }
 
+          //TODO - find cases
         case ApplyDynamic(qual, vargs) =>
           print("<apply-dynamic>(", qual, "#", tree.symbol.nameString)
           printRow(vargs, ", (", ", ", "))")
@@ -751,7 +782,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
         case Select(qualifier, name) =>
           qualifier match {
-            case _: Match | _: If => print("(", backquotedPath(qualifier), ").", symName(tree, name))
+            case _: Match | _: If | _: Try | _: LabelDef => print("(", backquotedPath(qualifier), ").", symName(tree, name))
             case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
           }
 
@@ -786,15 +817,25 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               printRow(args, "(", ",", ")")
           }
 
-          val unchecked = tpt match {
-              //TODO rewrite
-            case Select(_, tname) => tname.toString() == "unchecked"
-            //c: @unchecked match {
-            case tname => tname.toString() == "unchecked"
-            //case _ => false
+        //TODO combine all similar methods
+          val printParanthesis = tree match {
+            //TODO check - do we need them for label defs (while, do while)
+            case _: If | _: Match| _: Try | _: Annotated | _: LabelDef => true
+            case _ => false
           }
-          print(tree, if (tree.isType) " " else if (!unchecked) ": " else "")
-          if (!unchecked) printAnnot()
+
+//          val unchecked = tpt match {
+//              //TODO rewrite
+//            case Select(_, tname) => tname.toString() == "unchecked"
+//            //c: @unchecked match {
+//            case tname => tname.toString() == "unchecked"
+//            //case _ => false
+//          }
+//          print(tree, if (tree.isType) " " else if (!unchecked) ": " else "")
+//          if (!unchecked) printAnnot()
+        print(if (printParanthesis) "(" else "",tree, if (printParanthesis) ")" else "",if (tree.isType) " " else ": ")
+        printAnnot()
+
 
         case SingletonTypeTree(ref) =>
           print(ref, ".type")
