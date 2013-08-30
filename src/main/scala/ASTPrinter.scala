@@ -187,6 +187,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
     def backquotedPath(t: Tree): String = {
       t match {
+        case Select(qual, name) if (name.isTermName & (qual match {
+            case _: If | _: Match | _: Try | _: Annotated => true
+            case _ => false
+          }))  => "(%s).%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTermName  => "%s.%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTypeName  => "%s#%s".format(backquotedPath(qual), symName(t, name))
         case Ident(name)                            => symName(t, name)
