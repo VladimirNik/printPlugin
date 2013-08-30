@@ -793,7 +793,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case id@Ident(name) =>
           if (!name.isEmpty) {
             val str = symName(tree, name)
-            print(if (id.isBackquoted) "`" + str + "`" else str)
+            System.out.println("In Ident...")
+            System.out.println("str = " + str)
+
+            val strIsBackquoted = str.startsWith("`") && str.endsWith("`")
+
+            print(if (id.isBackquoted && !strIsBackquoted) "`" + str + "`" else str)
           }
           else {
             print("")
