@@ -7,7 +7,7 @@ import tempfile
 
 #pattern to find project's name
 nameRe = re.compile(".*name:\s*\"(.+)\".*")
-uriRe = re.compile(".*uri:\s*\"(.+)#.*\".*")
+uriRe = re.compile(".*uri:\s*\"(.+)#(.*)\".*")
 printDeps1 = re.compile(".*\"set\s*scalacOptions.*\"")
 printDeps2 = re.compile(".*\"set\s*libraryDependencies.*\"")
 printDeps3 = re.compile(".*\"set\s*publishArtifact.*\"")
@@ -18,8 +18,9 @@ printDeps4 = re.compile(".*\"set\s*addCompilerPlugin.*\"")
 dbuildPath = '/home/vova/scala-projects/GSoC/script2/dbuild-0.6.4/'
 dbuildGenSourcePath = os.getcwd()
 
-dbuildExec = dbuildPath + 'bin/dbuild'
-dbuildProjects = dbuildGenSourcePath + '/target-0.6.4/project-builds/'
+separator = "/"
+dbuildExec = dbuildPath + 'bin' + separator + 'dbuild'
+dbuildProjects = dbuildGenSourcePath + separator + 'target-0.6.4' + separator + 'project-builds' + separator
 printPlugin = 'printPlugin'
 
 filename = sys.argv[-1]
@@ -33,15 +34,28 @@ names = []
 uriNames = []
 prKeys = {}
 prFiles = {}
+prBranches = {}
 
 text=open(sys.argv[1], "r").read().split('\n')
+currentName = ""
 for line in text:
     match = re.match(nameRe, line)
+    uriMatch = re.match(uriRe, line)
     if match:
         prName = match.group(1)
+        currentName = prName
         if prName != printPlugin:
     	    names.append(prName.strip())
+    if uriMatch:
+        prBranch = uriMatch.group(2)
+        if prBranch:
+           prBranches[currentName] = prBranch
+        else:
+           prBranches[currentName] = 'master'
 files = os.popen('ls -tr ' + dbuildProjects).read().split('\n')
+
+print('prBranches:')
+print(prBranches)
 
 for prName in names:
     for fileName in reversed(files):
@@ -59,23 +73,27 @@ print("Compiling projects with regenerated sources...")
 print("==============================================")
 print("")
 
-errorsInCommands = 0
+errorsDbuild = 0
+errorsSbt = 0
 for prName in names:
    if not (printPlugin.lower() in prName.lower()):
        #(cd myPath/ && exec sbt "run arg1")
        print("----------------------------")
        print("   Processing " + prName)
        print("----------------------------")
-       command = "(cd " + dbuildProjects + prKeys.get(prName, prName) + " && sbt compile)"
-       print(command)
-       #os.system(command)
-       commandOutput = os.system(command)
-       if commandOutput != 0:
-          errorsInCommands = errorsInCommands + 1
-       prCodes[prName] = commandOutput
-       #commandOutput = os.popen(command).read() #.split('\n')
-       #print("commandOutput: ")
-       #print(commandOutput)
+       commandCheckDbuild = "ls " + dbuildProjects + prKeys.get(prName, prName) + separator + ".checkSrcRegen"
+       commandSbt = "(cd " + dbuildProjects + prKeys.get(prName, prName) + " && git checkout " + prBranches.get(prName, 'master') + " && sbt compile)"
+       print(commandSbt)
+       #checkOutput = 0
+       #commandOutput = 0
+       checkOutput = os.system(commandCheckDbuild)
+       if checkOutput == 0:
+          commandOutput = os.system(commandSbt)
+          if commandOutput != 0:
+             errorsSbt = errorsSbt + 1
+          prCodes[prName] = commandOutput
+       else:
+          prCodes[prName] = -1
 
 print("")
 print("==============================================")
@@ -86,16 +104,26 @@ print("")
 for prName in names:
     if not (printPlugin.lower() in prName.lower()):
        #print("Project: " + prName + ", prCode: " + str(prCodes.get(prName)))
-       if (prCodes.get(prName) != 0):
-          print("Project: " + prName + " ===> compilation failed <===")
-       else:
+       if (prCodes.get(prName) == 0):
           print("Project: " + prName + " ===> compilation is successful <===")
+       elif (prCodes.get(prName) == -1):
+          print("Project: " + prName + " ===> code regeneration failed (dbuild) <===")
+       else:
+          print("Project: " + prName + " ===> compilation failed (sbt) <===")
+       print("Branch: " + prBranches.get(prName, 'master'))
        print("Path: " + dbuildProjects + prKeys.get(prName, prName))
        print("")
 
-if errorsInCommands==1:
-    print(str(errorsInCommands) + " project has errors during compilation.")
-elif errorsInCommands>0:
-    print(str(errorsInCommands) + " projects have errors during compilation.")
+if errorsDbuild==1:
+    print(str(errorsDbuild) + " project has errors during source regeneration (dbuild).")
+elif errorsDbuild>0:
+    print(str(errorsSbt) + " projects have errors during source regeneration (dbuild).")
 else:
-    print("All projects compiled successfully.")
+    print("All sources are successfully regenerated (dbuild).")
+
+if errorsSbt==1:
+    print(str(errorsSbt) + " project has errors during compilation (sbt).")
+elif errorsSbt>0:
+    print(str(errorsSbt) + " projects have errors during compilation (sbt).")
+else:
+    print("All projects compiled successfully (sbt).")
