@@ -70,6 +70,7 @@ class PrintPlugin(val global: Global) extends Plugin {
   }
 
   def writeSourceCode(unit: CompilationUnit, sourceCode: String, folderName: String) {
+
     //this.synchronized{
       //generate name for default folder
       val defaultDirName = "sourceFromAST"
@@ -80,6 +81,14 @@ class PrintPlugin(val global: Global) extends Plugin {
       //System.out.println("defaultDir: " + defaultDir)
       //val sbtSourcePath = "src/main/scala"
 
+    try {
+      if (unit.source.file != null && unit.source.file.file.getParentFile != null) {
+      println("unit: " + unit)
+      println("unit.source: " + unit.source)
+      println("unit.source.file: " + unit.source.file)
+      println("unit.source.file.file: " + unit.source.file.file)
+      println("unit.source.file.file.getParentFile: " + unit.source.file.file.getParentFile)
+      println("unit.source.file.file.getParentFile.getAbsolutePath: " + unit.source.file.file.getParentFile.getAbsolutePath)
       val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
       System.out.println(" === getting path info: ===")
       System.out.println("currentFilePath: " + currentFilePath)
@@ -95,6 +104,8 @@ class PrintPlugin(val global: Global) extends Plugin {
       val writer = new PrintWriter(new File(filePath))
       try {
         writer.write(sourceCode)
+        regeneratedSources += unit.source.file.file.getAbsolutePath
+        printLogFile(new File(defaultDir + File.separator +regeneratedFileName), regeneratedSources)
       } finally {
         writer.close()
       }
@@ -109,8 +120,34 @@ class PrintPlugin(val global: Global) extends Plugin {
           checkWriter.close()
         }
       }
-
+    } else {
+      println("Can't process unit: " + unit)
+      embeddedSources += unit.source.file.name
+      printLogFile(new File(defaultDir + File.separator + embeddedFileName), embeddedSources)
+    }
+    } catch {
+      case e @ _ => println("Error during processing unit: " + unit)
+      throw e
+    }
     //}
+  }
+
+  val embeddedFileName = "embFileList.info"
+  val regeneratedFileName = "regeneratedFileList.info"
+  val regeneratedSources = scala.collection.mutable.ListBuffer[String]()
+  val embeddedSources = scala.collection.mutable.ListBuffer[String]()
+
+  //print log find is only actual for last process (if we add process id to name we can get all values (or append strings)
+  def printLogFile(file: File, info: scala.collection.mutable.ListBuffer[String]) = {
+    val checkWriter = new PrintWriter(file)
+    try {
+      val finalString = (info mkString "\n") + "\ninfo.size: " + info.size
+      checkWriter.write(finalString)
+      println("final string: " + finalString)
+      println("info.size: " + info.size)
+    } finally {
+      checkWriter.close()
+    }
   }
 
   //Phase should be inserted between prevPhase and nextPhase
@@ -131,6 +168,8 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
           this.synchronized {
+            //now we regenerate java files only (with the same code) only to have full project
+            //if we want not to regenerate original trees
             val sourceCode = if (!unit.source.file.name.contains(".java")) show(unit.body)
               else unit.source.content.mkString
             println("------ Source name: " + unit.source.file.name + " (thread.id = " + Thread.currentThread().getId+", thread.name = " + Thread.currentThread().getName+", this = "+ this +") -------")
