@@ -70,7 +70,7 @@ class PrintPlugin(val global: Global) extends Plugin {
   }
 
   def writeSourceCode(unit: CompilationUnit, sourceCode: String, folderName: String) {
-    this.synchronized{
+    //this.synchronized{
       //generate name for default folder
       val defaultDirName = "sourceFromAST"
 
@@ -96,9 +96,21 @@ class PrintPlugin(val global: Global) extends Plugin {
       try {
         writer.write(sourceCode)
       } finally {
-      writer.close()
+        writer.close()
       }
-    }
+      //check file creation
+      val checkFile = new File(defaultDir + File.separator + ".checkSrcRegen")
+      if (!checkFile.exists()) {
+        val checkWriter = new PrintWriter(checkFile)
+        try {
+          println("*** source generation processing... ***")
+          checkWriter.write("source regeneration: " + new java.util.Date())
+        } finally {
+          checkWriter.close()
+        }
+      }
+
+    //}
   }
 
   //Phase should be inserted between prevPhase and nextPhase
