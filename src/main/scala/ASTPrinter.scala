@@ -793,8 +793,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case id@Ident(name) =>
           if (!name.isEmpty) {
             val str = symName(tree, name)
-            System.out.println("In Ident...")
-            System.out.println("str = " + str)
+            //System.out.println("In Ident...")
+            //System.out.println("str = " + str)
 
             val strIsBackquoted = str.startsWith("`") && str.endsWith("`")
 
@@ -862,6 +862,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case AppliedTypeTree(tp, args) =>
+          System.out.println("=== Applied type tree found! ===")
+          System.out.println("args = " + args)
           //TODO find function types
           //get name of base type
           //val functions = 0 to 27 map { "Function" + _ }
@@ -883,7 +885,15 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               case _ => false
             }
 
-          if (isFunctionType) {
+          //it's possible to have (=> String) => String type but Function1[=> String, String] is not correct
+          def containsByNameTypeParam =
+            args exists { x => x match {
+                case AppliedTypeTree(Select(qual, name), _) => System.out.println("name found: " + name); name.toString.equals("<byname>")
+                case _ => System.out.println("nothing found");false
+              }
+            }
+
+          if (containsByNameTypeParam) {
             print("(")
             printRow(args.init, "(", ", ", ")")
             print(" => ", args.last, ")")
