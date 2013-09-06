@@ -10,6 +10,7 @@ nameRe = re.compile(".*name:\s*\"(.+)\".*")
 uriRe = re.compile(".*uri:\s*\"(.+)#(.*)\".*")
 #for last project in the file if version is not set up explicitly we set up dbuild default sbt version (if any)
 sbtRe = re.compile(".*sbt-version.*:.*\"(.*)\".*")
+fileRe = re.compile("(.*)-.*")
 printDeps1 = re.compile(".*\"set\s*scalacOptions.*\"")
 printDeps2 = re.compile(".*\"set\s*libraryDependencies.*\"")
 printDeps3 = re.compile(".*\"set\s*publishArtifact.*\"")
@@ -31,7 +32,7 @@ filename = sys.argv[-1]
 print("dbuildExec: " + dbuildExec)
 print("filename: " + filename)
 #uncomment this
-#call([dbuildExec, filename])
+call([dbuildExec, filename])
 #callVal = os.system(dbuildExec + " " + fileName)
 
 names = []
@@ -63,11 +64,13 @@ for line in text:
     if sbtMatch:
         print('sbt match...')
   	prSbt = sbtMatch.group(1)
+        print('prSbt = ' + prSbt)
+        print('setSbtForCurrentProject: ' + str(setSbtForCurrentProject))
 	if prSbt and setSbtForCurrentProject:
 	   prSbts[currentName] = prSbt
+           print("currentName = " + currentName)
            setSbtForCurrentProject = False
-	else:
-	   prSbts[currentName] = ''
+           print("-------------------------")
 files = os.popen('ls -tr ' + dbuildProjects).read().split('\n')
 
 print('prBranches:')
@@ -78,9 +81,13 @@ print(prSbts)
 
 for prName in names:
     for fileName in reversed(files):
-        if prName.lower() in fileName.lower():
-            prKeys[prName] = fileName
-            break
+        fileMatch = re.match(fileRe, fileName)
+        if fileMatch:
+           prPart = fileMatch.group(1)
+           print("prPart = " + prPart)
+	   if prPart.strip and (prName.lower() == prPart.lower()):
+              prKeys[prName] = fileName
+              break
 print("prKeys: ")
 print(prKeys)
 
@@ -117,7 +124,7 @@ for prName in names:
              print("ERROR: build.properties generation failed") 
 
        commandCheckDbuild = "ls " + dbuildProjects + prKeys.get(prName, prName) + separator + ".checkSrcRegen"
-       commandSbt = "(cd " + dbuildProjects + prKeys.get(prName, prName) + " && git checkout " + prBranches.get(prName, 'master') + " && sbt compile)"
+       commandSbt = "(cd " + dbuildProjects + prKeys.get(prName, prName) + " && git checkout " + prBranches.get(prName, 'master') + " && sbt clean && sbt compile && sbt clean && sbt test)"
        print(commandSbt)
 
        #checkOutput = 0
