@@ -10,35 +10,31 @@ build {
     }, {
       name:   "squeryl",
       system: "sbt",
-      uri:    "git://github.com/VladimirNik/Squeryl.git#master"
+      uri:    "git://github.com/VladimirNik/Squeryl.git#dbuild-test"
       extra: {
         commands: [
           "set addCompilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
           "set scalacOptions += \"-P:printplugin:oversrc\"",
-          "set publishArtifact in (Compile, packageDoc) := false",
-          "set publishArtifact in (Compile, packageSrc) := false",
-          "set publishArtifact in (Compile, packageBin) := false"
+          "set publishArtifact in (Compile, packageDoc) := false"
         ]
       }
     }, {
       name:"shapeless",
       system:"sbt",
-      uri:"git://github.com/VladimirNik/shapeless.git#master"
+      uri:"git://github.com/VladimirNik/shapeless.git#dbuild-test"
       extra: {
         commands: [
           "set libraryDependencies in ThisBuild += compilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
           "set scalacOptions in shapelessCore += \"-P:printplugin:oversrc\"",
           "set scalacOptions in shapeless += \"-P:printplugin:oversrc\"",
           "set scalacOptions in shapelessExamples += \"-P:printplugin:oversrc\"",
-          "set publishArtifact in (ThisBuild, Compile, packageDoc) := false",
-          "set publishArtifact in (ThisBuild, Compile, packageSrc) := false",
-          "set publishArtifact in (ThisBuild, Compile, packageBin) := false"
+          "set publishArtifact in (ThisBuild, Compile, packageDoc) := false"
         ]
       }
     }, {
       name:"scalaz",
       system:"sbt",
-      uri:"git://github.com/VladimirNik/scalaz.git#scalaz-seven"
+      uri:"git://github.com/VladimirNik/scalaz.git#dbuild-test"
       extra: {
         commands: [
           "set libraryDependencies in ThisBuild += compilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
@@ -46,21 +42,49 @@ build {
           "set publishArtifact in (ThisBuild, Compile, packageDoc) := false",
           "set publishArtifact in (example, Compile, packageDoc) := false",
           "set publishArtifact in (scalaz, Compile, packageDoc) := false",
-          "set publishArtifact in (tests, Compile, packageDoc) := false",
-          "set publishArtifact in (ThisBuild, Compile, packageSrc) := false",
-          "set publishArtifact in (example, Compile, packageSrc) := false",
-          "set publishArtifact in (scalaz, Compile, packageSrc) := false",
-          "set publishArtifact in (tests, Compile, packageSrc) := false",
-          "set publishArtifact in (ThisBuild, Compile, packageBin) := false",
-          "set publishArtifact in (example, Compile, packageBin) := false",
-          "set publishArtifact in (scalaz, Compile, packageBin) := false",
-          "set publishArtifact in (tests, Compile, packageBin) := false",
+          "set publishArtifact in (tests, Compile, packageDoc) := false"
+        ]
+      }
+    }, {
+      name:   "slick",
+      system: "sbt",
+      uri:    "git://github.com/VladimirNik/slick.git#dbuild-test"
+      extra: {
+        sbt-version: "0.12.4",
+        commands: [
+          "set libraryDependencies in ThisBuild += compilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
+          "set scalacOptions in ThisBuild += \"-P:printplugin:oversrc\"",
+          "set publishArtifact in (ThisBuild, Compile, packageDoc) := false"
+        ]
+      }
+    }, {
+      name:   "scalameter",
+      system: "sbt",
+      uri:    "git://github.com/VladimirNik/scalameter.git#dbuild-test"
+      extra: {
+        sbt-version: "0.12.4",
+        commands: [
+          "set libraryDependencies in ThisBuild += compilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
+          "set scalacOptions in ThisBuild += \"-P:printplugin:oversrc\"",
+          "set publishArtifact in ThisBuild := false"
+        ]
+      }
+    }, {
+      name:   "scalacheck",
+      system: "sbt",
+      uri:    "git://github.com/VladimirNik/scalacheck.git#dbuild-test"
+      extra: {
+        sbt-version: "0.12.4",
+        commands: [
+          "set libraryDependencies in ThisBuild += compilerPlugin(\"test.org\" %% \"printplugin\" % \"1.0\")",
+          "set scalacOptions in ThisBuild += \"-P:printplugin:oversrc\"",
+          "set publishArtifact in ThisBuild := false"
         ]
       }
     }
   ],
   options:{
     cross-version: standard,
-    sbt-version    : "0.13.0-RC4"
+    sbt-version    : "0.13.0"
   }
 }
