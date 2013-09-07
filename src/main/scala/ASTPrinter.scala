@@ -188,7 +188,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     def backquotedPath(t: Tree): String = {
       t match {
         case Select(qual, name) if (name.isTermName & (qual match {
-            case _: If | _: Match | _: Try | _: Annotated => true
+            case _: If | _: Match | _: Try | _: Annotated | _: Block => true
             case _ => false
           }))  => "(%s).%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTermName  => "%s.%s".format(backquotedPath(qual), symName(t, name))
@@ -288,7 +288,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               } else print(" ")
 
               //constructor's params
-              System.out.println("printParamss: " + printParamss)
+              //System.out.println("printParamss: " + printParamss)
               printParamss foreach { printParams =>
                 //don't print single empty constructor param list
                 if (!(printParams.isEmpty && printParamss.size == 1) || cstrMods.hasFlag(AccessFlags)) {
@@ -303,7 +303,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val printedParents = removeDefaultTypesFromList(parents)(List("AnyRef"))(if (mods.hasFlag(CASE)) List("Product", "Serializable") else Nil)
           //removeDefaultClassesFromList(parents, if (mods.hasFlag(CASE)) List("AnyRef", "Product", "Serializable") else List("AnyRef"))
           //TODO - current problem
-          //if (name.toString().contains("TestLazy")) {
+          //if (name.toString().contains("HygieneSpec")) {
             System.out.println("=== In Class Def ===")
             System.out.println("name: " + name)
             System.out.println("showRaw tree: " + showRaw(tree))
@@ -344,13 +344,13 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val Template(parents @ List(_*), self, methods) = impl
           val parentsWAnyRef = removeDefaultClassesFromList(parents, List("AnyRef"))
           //if (name.toString().contains("Scalaz")) {
-            System.out.println("=== In Module Def ===")
-            System.out.println("name: " + name)
-            System.out.println("showRaw tree: " + showRaw(tree))
-            System.out.println("show tree (using global): " + global.show(tree))
-            System.out.println("parents: " + parents + "\n")
-            System.out.println("parentsWAnyRef: " + parentsWAnyRef + "\n")
-            System.out.println("=========")
+            //System.out.println("=== In Module Def ===")
+            //System.out.println("name: " + name)
+            //System.out.println("showRaw tree: " + showRaw(tree))
+            //System.out.println("show tree (using global): " + global.show(tree))
+            //System.out.println("parents: " + parents + "\n")
+            //System.out.println("parentsWAnyRef: " + parentsWAnyRef + "\n")
+            //System.out.println("=========")
             //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
           //}
           //contextStack.push(tree)
@@ -499,9 +499,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ =>
           }
 
-          System.out.println("ap: " + ap)
-          System.out.println("ctArgs: " + ctArgs)
-          System.out.println("presuperVals: " + presuperVals)
+          //System.out.println("ap: " + ap)
+          //System.out.println("ctArgs: " + ctArgs)
+          //System.out.println("presuperVals: " + presuperVals)
 
           val printedParents = //if (!getCurrentContext().isInstanceOf[TypeDef]) removeTypeFromList(parents) else parents
             getCurrentContext() match {
@@ -619,7 +619,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           selectorType = selector.tpe
 
           val printParanthesis = selector match {
-            case _: If | _: Match | _: Try | _: Annotated => true
+            case _: If | _: Match | _: Try | _: Annotated | _: Block => true
             case _ => false
           }
 
@@ -754,7 +754,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                 val printBlock = Block(l1, Apply(a1, l3))
                 print(printBlock)
             //TODO find more general way to include matches, ...
-            case Apply(_: If, _) | Apply(_: Try, _) | Apply(_: Match, _) | Apply(_: LabelDef, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
+            case Apply(_: If, _) | Apply(_: Try, _) | Apply(_: Match, _) | Apply(_: LabelDef, _) | Apply(_: Block, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
             case _ => print(fun); printRow(vargs, "(", ", ", ")")
           }
 
@@ -784,11 +784,14 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case Select(qual@New(tpe), name) if (!settings.debug.value) =>
           print(qual)
 
-        case Select(qualifier, name) =>
+        case Select(qualifier, name) => {
+          System.out.println("QQQQQQQQQQQQQQQQQQQQQQQQQ")
+          System.out.println("qualifier = " + qualifier)
           qualifier match {
-            case _: Match | _: If | _: Try | _: LabelDef => print("(", backquotedPath(qualifier), ").", symName(tree, name))
+            case _: Match | _: If | _: Try | _: LabelDef | _: Block => print("(", backquotedPath(qualifier), ").", symName(tree, name))
             case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
           }
+        }
 
         case id@Ident(name) =>
           if (!name.isEmpty) {
@@ -829,7 +832,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //TODO combine all similar methods
           val printParanthesis = tree match {
             //TODO check - do we need them for label defs (while, do while)
-            case _: If | _: Match| _: Try | _: Annotated | _: LabelDef => true
+            case _: If | _: Match| _: Try | _: Annotated | _: LabelDef | _: Block => true
             case _ => false
           }
 
@@ -862,8 +865,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case AppliedTypeTree(tp, args) =>
-          System.out.println("=== Applied type tree found! ===")
-          System.out.println("args = " + args)
+          //System.out.println("=== Applied type tree found! ===")
+          //System.out.println("args = " + args)
           //TODO find function types
           //get name of base type
           //val functions = 0 to 27 map { "Function" + _ }
@@ -888,8 +891,8 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           //it's possible to have (=> String) => String type but Function1[=> String, String] is not correct
           def containsByNameTypeParam =
             args exists { x => x match {
-                case AppliedTypeTree(Select(qual, name), _) => System.out.println("name found: " + name); name.toString.equals("<byname>")
-                case _ => System.out.println("nothing found");false
+                case AppliedTypeTree(Select(qual, name), _) => name.toString.equals("<byname>")
+                case _ => false
               }
             }
 

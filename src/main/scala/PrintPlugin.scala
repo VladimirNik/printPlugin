@@ -83,24 +83,24 @@ class PrintPlugin(val global: Global) extends Plugin {
 
     try {
       if (unit.source.file != null && unit.source.file.file.getParentFile != null) {
-      println("unit: " + unit)
+      //println("unit: " + unit)
       println("unit.source: " + unit.source)
-      println("unit.source.file: " + unit.source.file)
-      println("unit.source.file.file: " + unit.source.file.file)
-      println("unit.source.file.file.getParentFile: " + unit.source.file.file.getParentFile)
-      println("unit.source.file.file.getParentFile.getAbsolutePath: " + unit.source.file.file.getParentFile.getAbsolutePath)
+      //println("unit.source.file: " + unit.source.file)
+      //println("unit.source.file.file: " + unit.source.file.file)
+      //println("unit.source.file.file.getParentFile: " + unit.source.file.file.getParentFile)
+      //println("unit.source.file.file.getParentFile.getAbsolutePath: " + unit.source.file.file.getParentFile.getAbsolutePath)
       val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
-      System.out.println(" === getting path info: ===")
-      System.out.println("currentFilePath: " + currentFilePath)
+      //System.out.println(" === getting path info: ===")
+      //System.out.println("currentFilePath: " + currentFilePath)
       val genSourcePath = if (overrideSrc) currentFilePath
         else currentFilePath.replaceFirst(defaultDir, defaultDir + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDir, baseDir)
       //System.out.println("genSourcePath: " + genSourcePath)
-      System.out.println("genSourcePath: " + genSourcePath)
+      //System.out.println("genSourcePath: " + genSourcePath)
       val dir = new File(genSourcePath)
       dir.mkdirs()
 
       val filePath = genSourcePath + File.separator + unit.source.file.name
-      System.out.println("filePath: " + filePath)
+      //System.out.println("filePath: " + filePath)
       val writer = new PrintWriter(new File(filePath))
       try {
         writer.write(sourceCode)
@@ -114,14 +114,14 @@ class PrintPlugin(val global: Global) extends Plugin {
       if (!checkFile.exists()) {
         val checkWriter = new PrintWriter(checkFile)
         try {
-          println("*** source generation processing... ***")
+          //println("*** source generation processing... ***")
           checkWriter.write("source regeneration: " + new java.util.Date())
         } finally {
           checkWriter.close()
         }
       }
     } else {
-      println("Can't process unit: " + unit)
+      //println("Can't process unit: " + unit)
       embeddedSources += unit.source.file.name
       printLogFile(new File(defaultDir + File.separator + embeddedFileName), embeddedSources)
     }
@@ -176,7 +176,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             //println("showRaw(unit.body): " + showRaw(unit.body))
             //
-            println(sourceCode)
+            //println(sourceCode)
             println("----------------------------------------------")
           }
         } catch {
