@@ -19,9 +19,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 
   import global._
 
-  //TODO refactor show
-  //TODO not optimal - bad solution
-  //don't forget this method after ASTPrinter moving!!!
   def show(what: Any, generic: Boolean) = {
     val buffer = new StringWriter()
     val writer = new PrintWriter(buffer)
@@ -40,12 +37,12 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
     val contextStack = scala.collection.mutable.Stack[Tree]()
 
     //this methods are here because they are private
-    private def symFn[T](tree: Tree, f: Symbol => T, orElse: => T): T = tree.symbol match {
-      case null | NoSymbol => orElse
-      case sym => f(sym)
-    }
-
-    private def ifSym(tree: Tree, p: Symbol => Boolean) = symFn(tree, p, false)
+//    private def symFn[T](tree: Tree, f: Symbol => T, orElse: => T): T = tree.symbol match {
+//      case null | NoSymbol => orElse
+//      case sym => f(sym)
+//    }
+//
+//    private def ifSym(tree: Tree, p: Symbol => Boolean) = symFn(tree, p, false)
 
     private var currentOwner: Symbol = NoSymbol
     private var selectorType: Type = NoType
@@ -62,10 +59,11 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         ), isCtr
       //we need to print implicits independently of context
     ) else {
-        //TODO refactor
-        if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
-        if(mods.hasFlag(CASE)) printFlags(CASE, "", isCtr)
-        if(mods.hasFlag(LAZY)) printFlags(LAZY, "", isCtr)
+        //TODO refactor -
+        List(IMPLICIT, CASE, LAZY).foreach{flag => if(mods.hasFlag(flag))  printFlags(flag, "", isCtr)}
+//        if(mods.hasFlag(IMPLICIT)) printFlags(IMPLICIT, "", isCtr)
+//        if(mods.hasFlag(CASE)) printFlags(CASE, "", isCtr)
+//        if(mods.hasFlag(LAZY)) printFlags(LAZY, "", isCtr)
       }
     //TODO create else branch and if Lazy, and case
 
@@ -234,7 +232,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printModifiers(tree, mods)
           val word =
             if (mods.isTrait) "trait"
-            else if (ifSym(tree, _.isModuleClass)) "object"
+//            else if (ifSym(tree, _.isModuleClass)) "object"
             else "class"
 
           print(word, " ", symName(tree, name))
@@ -276,9 +274,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
                   }
               }
             } else null
-//            val printParamss2 = if (primaryConstr != null) (vparamss(0), templateVals).zipped.map((x, y) =>
-//              ValDef(Modifiers(x.mods.flags | y._2.flags, x.mods.privateWithin, (x.mods.annotations ::: y._2.annotations) distinct), x.name, x.tpt, x.rhs))
-//            else null
 
             if (primaryConstr != null) {
               //constructor's modifier
@@ -303,16 +298,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val printedParents = removeDefaultTypesFromList(parents)(List("AnyRef"))(if (mods.hasFlag(CASE)) List("Product", "Serializable") else Nil)
           //removeDefaultClassesFromList(parents, if (mods.hasFlag(CASE)) List("AnyRef", "Product", "Serializable") else List("AnyRef"))
           //TODO - current problem
-          //if (name.toString().contains("HygieneSpec")) {
-            System.out.println("=== In Class Def ===")
-            System.out.println("name: " + name)
-            System.out.println("showRaw tree: " + showRaw(tree))
-            System.out.println("show tree (using global): " + global.show(tree))
-            System.out.println("parents: " + parents + "\n")
-            System.out.println("printedParents: " + printedParents + "\n")
-            System.out.println("=========")
-            //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
-          //}
 
           //pre-init block possible only if there are printed parents
           print(if (mods.isDeferred) "<: " else if (!printedParents.isEmpty) "extends "
@@ -343,25 +328,10 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           printModifiers(tree, mods);
           val Template(parents @ List(_*), self, methods) = impl
           val parentsWAnyRef = removeDefaultClassesFromList(parents, List("AnyRef"))
-          //if (name.toString().contains("Scalaz")) {
-            //System.out.println("=== In Module Def ===")
-            //System.out.println("name: " + name)
-            //System.out.println("showRaw tree: " + showRaw(tree))
-            //System.out.println("show tree (using global): " + global.show(tree))
-            //System.out.println("parents: " + parents + "\n")
-            //System.out.println("parentsWAnyRef: " + parentsWAnyRef + "\n")
-            //System.out.println("=========")
-            //System.out.println("parentsWAnyRef: " + parentsWAnyRef)
-          //}
-          //contextStack.push(tree)
           print("object " + symName(tree, name), if (!parentsWAnyRef.isEmpty) " extends " else " ", impl)
           contextStack.pop()
 
         case vd@ValDef(mods, name, tp, rhs) =>
-          //if (name.toString() == ("x$11")) {
-            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
-          //}
           printAnnotations(tree)
           printModifiers(tree, mods)
           print(if (mods.isMutable) "var " else "val ", symName(tree, name))
@@ -373,11 +343,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val a: (=> Int) => Int = null
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
-          //sym info isn't set after parser
-          //if (name.toString().contains("mkCompoundTpt")) {
-            //System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-            //System.out.println("show tree (using global): " + global.show(tree) + "\n")
-          //}
           printAnnotations(tree)
           printModifiers(tree, mods)
           print("def " + symName(tree, name))
@@ -391,10 +356,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case TypeDef(mods, name, tparams, rhs) =>
-//          if (name.toString().contains("Disj")) {
-//            System.out.println("showRaw tree: " + showRaw(tree) + "\n")
-//            System.out.println("show tree (using global): " + global.show(tree) + "\n")
-//          }
           if (mods hasFlag (PARAM | DEFERRED)) {
             printAnnotations(tree)
             printModifiers(tree, mods);
@@ -455,7 +416,7 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case Template(parents, self, body) =>
-          System.out.println("in Template...")
+//          System.out.println("in Template...")
           //TODO separate classes and templates
           val currentOwner1 = currentOwner
           if (tree.symbol != NoSymbol) currentOwner = tree.symbol.owner
@@ -498,10 +459,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //              ctArgs = crtArs
             case _ =>
           }
-
-          //System.out.println("ap: " + ap)
-          //System.out.println("ctArgs: " + ctArgs)
-          //System.out.println("presuperVals: " + presuperVals)
 
           val printedParents = //if (!getCurrentContext().isInstanceOf[TypeDef]) removeTypeFromList(parents) else parents
             getCurrentContext() match {
@@ -785,8 +742,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print(qual)
 
         case Select(qualifier, name) => {
-          System.out.println("QQQQQQQQQQQQQQQQQQQQQQQQQ")
-          System.out.println("qualifier = " + qualifier)
           qualifier match {
             case _: Match | _: If | _: Try | _: LabelDef | _: Block => print("(", backquotedPath(qualifier), ").", symName(tree, name))
             case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
@@ -796,8 +751,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         case id@Ident(name) =>
           if (!name.isEmpty) {
             val str = symName(tree, name)
-            //System.out.println("In Ident...")
-            //System.out.println("str = " + str)
 
             val strIsBackquoted = str.startsWith("`") && str.endsWith("`")
 
@@ -836,15 +789,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             case _ => false
           }
 
-//          val unchecked = tpt match {
-//              //TODO rewrite
-//            case Select(_, tname) => tname.toString() == "unchecked"
-//            //c: @unchecked match {
-//            case tname => tname.toString() == "unchecked"
-//            //case _ => false
-//          }
-//          print(tree, if (tree.isType) " " else if (!unchecked) ": " else "")
-//          if (!unchecked) printAnnot()
         print(if (printParanthesis) "(" else "",tree, if (printParanthesis) ")" else "",if (tree.isType) " " else ": ")
         printAnnot()
 
@@ -865,29 +809,6 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           contextStack.pop()
 
         case AppliedTypeTree(tp, args) =>
-          //System.out.println("=== Applied type tree found! ===")
-          //System.out.println("args = " + args)
-          //TODO find function types
-          //get name of base type
-          //val functions = 0 to 27 map { "Function" + _ }
-          //if (functions.contains(nameOfType) ...
-          //for name => ...
-          //TODO (TOASK) find stadart solution - now it's possuble that another Function redefined
-
-          //TODO move it to class declarations
-          val functionName = "Function"
-          val funcTypeNames = 0 to 22 map { "Function" + _ }
-          //System.out.println("funcTypeNames: " + funcTypeNames)
-
-          def isFunctionType =
-            tp match {
-              //_root_.scala.Function0[String]
-              case Select(qual, name) => funcTypeNames.contains(name.toString)
-              //Function0[String]
-              case Ident(name) => funcTypeNames.contains(name.toString)
-              case _ => false
-            }
-
           //it's possible to have (=> String) => String type but Function1[=> String, String] is not correct
           def containsByNameTypeParam =
             args exists { x => x match {
@@ -935,80 +856,77 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
         //          case SelectFromArray(qualifier, name, _) =>
         //          print(qualifier); print(".<arr>"); print(symName(tree, name))
 
-        case tree =>
-          xprintTree(this, tree)
+        case tree => super.print(tree)
+//          xprintTree(this, tree)
       }
       if (printTypes && tree.isTerm && !tree.isEmpty) {
         print("{", if (tree.tpe eq null) "<null>" else tree.tpe.toString, "}")
       }
     }
 
-    private def symNameInternal(tree: Tree, name: Name, decoded: Boolean): String = {
-      val sym = tree.symbol
-      if (sym.name.toString == nme.ERROR.toString) {
-        "<" + quotedName(name, decoded) + ": error>"
-      } else if (sym != null && sym != NoSymbol) {
-        val prefix = if (sym.isMixinConstructor) "/*%s*/".format(quotedName(sym.owner.name, decoded)) else ""
-        var suffix = ""
-        if (settings.uniqid.value) suffix += ("#" + sym.id)
-        //if (settings.Yshowsymkinds.value) suffix += ("#" + sym.abbreviatedKindString)
-        prefix + quotedName(tree.symbol.decodedName) + suffix
-      } else {
-        //val str = if (nme.isConstructorName(name)) "this"
-        val str = if (name == nme.CONSTRUCTOR) "this"
-        else quotedName(name, decoded)
-        str
-      }
-    }
+//    private def symNameInternal(tree: Tree, name: Name, decoded: Boolean): String = {
+////      val sym = tree.symbol
+////      if (sym.name.toString == nme.ERROR.toString) {
+////        "<" + quotedName(name, decoded) + ": error>"
+////      } else if (sym != null && sym != NoSymbol) {
+////        val prefix = if (sym.isMixinConstructor) "/*%s*/".format(quotedName(sym.owner.name, decoded)) else ""
+////        var suffix = ""
+////        if (settings.uniqid.value) suffix += ("#" + sym.id)
+////        //if (settings.Yshowsymkinds.value) suffix += ("#" + sym.abbreviatedKindString)
+////        prefix + quotedName(tree.symbol.decodedName) + suffix
+////      } else {
+//        //val str = if (nme.isConstructorName(name)) "this"
+//        val str = if (name == nme.CONSTRUCTOR) "this"
+//        else quotedName(name, decoded)
+//        str
+////      }
+//    }
 
-    def decodedSymName(tree: Tree, name: Name) = symNameInternal(tree, name, true)
+//    def decodedSymName(tree: Tree, name: Name) = symNameInternal(tree, name, true)
 
-    def symName(tree: Tree, name: Name) = symNameInternal(tree, name, false)
+//    def symName(tree: Tree, name: Name) = symNameInternal(tree, name, false)
 
+    def symName(tree: Tree, name: Name, decoded: Boolean = false): String =
+      if (name == nme.CONSTRUCTOR) "this"
+      else quotedName(name, decoded)
+
+
+//    override def print(args: Any*): Unit = args foreach {
+//      case tree: Tree =>
+//        printPosition(tree)
+//        printTree(
+//          if (tree.isDef && tree.symbol != NoSymbol && tree.symbol.isInitialized) {
+//            tree match {
+//              case ClassDef(_, _, _, impl@Template(ps, emptyValDef, body))
+//                if (tree.symbol.thisSym != tree.symbol) =>
+//                ClassDef(tree.symbol, Template(ps, ValDef(tree.symbol.thisSym), body))
+//              case ClassDef(_, _, _, impl) => ClassDef(tree.symbol, impl)
+//              case ModuleDef(_, _, impl) => ModuleDef(tree.symbol, impl)
+//              case ValDef(_, _, _, rhs) => ValDef(tree.symbol, rhs)
+//              case DefDef(_, _, _, vparamss, _, rhs) => DefDef(tree.symbol, vparamss, rhs)
+//              case TypeDef(_, _, _, rhs) => TypeDef(tree.symbol, rhs)
+//              case _ => tree
+//            }
+//          } else tree)
+//      case unit: CompilationUnit =>
+//        print("// Scala source: " + unit.source + "\n")
+//        if (unit.body == null) print("<null>")
+//        else {
+//          print(unit.body);
+//          println()
+//        }
+//        println()
+//        out.flush()
+//      case name: Name =>
+//        print(quotedName(name))
+//      case arg =>
+//        out.print(if (arg == null) "null" else arg.toString)
+//    }
 
     override def print(args: Any*): Unit = args foreach {
-      case tree: Tree =>
-        printPosition(tree)
-        printTree(
-          if (tree.isDef && tree.symbol != NoSymbol && tree.symbol.isInitialized) {
-            tree match {
-              case ClassDef(_, _, _, impl@Template(ps, emptyValDef, body))
-                if (tree.symbol.thisSym != tree.symbol) =>
-                ClassDef(tree.symbol, Template(ps, ValDef(tree.symbol.thisSym), body))
-              case ClassDef(_, _, _, impl) => ClassDef(tree.symbol, impl)
-              case ModuleDef(_, _, impl) => ModuleDef(tree.symbol, impl)
-              case ValDef(_, _, _, rhs) => ValDef(tree.symbol, rhs)
-              case DefDef(_, _, _, vparamss, _, rhs) => DefDef(tree.symbol, vparamss, rhs)
-              case TypeDef(_, _, _, rhs) => TypeDef(tree.symbol, rhs)
-              case _ => tree
-            }
-          } else tree)
-      case unit: CompilationUnit =>
-        print("// Scala source: " + unit.source + "\n")
-        if (unit.body == null) print("<null>")
-        else {
-          print(unit.body);
-          println()
-        }
-        println()
-        out.flush()
       case name: Name =>
         print(quotedName(name))
-      case arg =>
-        out.print(if (arg == null) "null" else arg.toString)
+      case other => super.print(other)
     }
-
-    //print from internal
-    //  override def print(args: Any*): Unit = args foreach {
-    //    case tree: Tree =>
-    //      printPosition(tree)
-    //      printTree(tree)
-    //    case name: Name =>
-    //      print(quotedName(name))
-    //    case arg =>
-    //      out.print(if (arg == null) "null" else arg.toString)
-    //  }
-
   }
-
 }
