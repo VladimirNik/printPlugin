@@ -115,20 +115,6 @@ class PrintPlugin(val global: Global) extends Plugin {
       }
     }
 
-    //TODO refactor this fragment (dublicate)
-//    def show(what: Any) = {
-//
-//      val buffer = new StringWriter()
-//      val writer = new PrintWriter(buffer)
-//
-//      val printers = new ASTPrinters(global, writer)
-//      var printer = new printers.ASTPrinter
-//
-//      printer.print(what)
-//      writer.flush()
-//      buffer.toString
-//    }
-
     def reconstructTree(what: Tree) = {
       printers.show(what)
     }

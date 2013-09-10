@@ -51,12 +51,10 @@ class ASTPrinters(val global: Global) {
       case _ => false
     }
 
-    //to skip all annotations
     override def printFlags(flags: Long, privateWithin: String) =
       printFlags(flags, privateWithin, false)
 
     def printFlags(flags: Long, privateWithin: String, isCtr: Boolean) {
-      //TODO parse ABSOVERRIDE
       val base = PROTECTED | OVERRIDE | PRIVATE | ABSTRACT | FINAL | SEALED | LAZY | LOCAL
       val mask = if (isCtr) base else base | IMPLICIT
 
@@ -71,15 +69,12 @@ class ASTPrinters(val global: Global) {
     }
 
     def printConstrParams(ts: List[ValDef], isConstr: Boolean) {
-      //print("(")
       codeInParantheses(){
         if (!ts.isEmpty) printFlags(ts.head.mods.flags & IMPLICIT, "")
-        //TODO change param to _
         printSeq(ts) {
           printParam(_, true)
         } { print(", ") }
       }
-      //print(")")
     }
 
     override def printValueParams(ts: List[ValDef]) {
@@ -87,7 +82,7 @@ class ASTPrinters(val global: Global) {
     }
 
     def printValueParams(ts: List[ValDef], isFuncTree: Boolean) {
-      //val a: Int => Int = implicit x => x //there shouldn't be paranthesis
+      //val a: Int => Int = implicit x => x //parantheses are not allowed here
       val printParanthesis = !isFuncTree || {
         ts match {
           case List(vd: ValDef) => !vd.mods.hasFlag(IMPLICIT)
@@ -170,7 +165,6 @@ class ASTPrinters(val global: Global) {
     //Danger while using inheritance: it's hidden (overwritten) method
     def backquotedPath(t: Tree): String = {
       t match {
-          //IF, Match, Try, Annotated, Block
         case Select(qual, name) if (name.isTermName && specialTreeContext(qual)(iLabelDef = false)) => "(%s).%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTermName  => "%s.%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTypeName  => "%s#%s".format(backquotedPath(qual), symName(t, name))
@@ -209,10 +203,6 @@ class ASTPrinters(val global: Global) {
       tree match {
         case EmptyTree =>
 
-        //TODO - method to get primary constructor
-        //TODO - method to get auxilary constructor
-        //TODO - method to get defdef
-
         case ClassDef(mods, name, tparams, impl) =>
           contextManaged(tree){
             printAnnotations(tree)
@@ -230,35 +220,33 @@ class ASTPrinters(val global: Global) {
                 case ValDef(mods, name, _, _) => (name, mods)
               }
 
-              //to do move => to right, remove getOrElse
-              val primaryConstr = methods collectFirst {
+              val primaryConstrOpt = methods collectFirst {
                 case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
-              } getOrElse (null)
+              }
 
-              val cstrMods = if (primaryConstr != null) primaryConstr.mods else null
-              val ctparams = if (primaryConstr != null) primaryConstr.tparams else null
-              val vparamss = if (primaryConstr != null) primaryConstr.vparamss else null
-              val tp = if (primaryConstr != null) primaryConstr.tpt else null
-              val rhs = if (primaryConstr != null) primaryConstr.rhs else null
+              primaryConstrOpt map {
+                primaryConstr =>
 
-              //combine modifiers
-              val printParamss = if (primaryConstr != null) {
-                vparamss map {
-                  vparams =>
-                    if (vparams.isEmpty) vparams
-                    else vparams map {
-                      vparam =>
-                      val templateVal = templateVals find {
-                        _._1 == vparam.name
-                      } getOrElse null
-                      if (templateVal != null)
-                        ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin, (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
-                        else vparam
+                val cstrMods = primaryConstr.mods
+                val vparamss = primaryConstr.vparamss
+
+                //combine modifiers
+                val printParamss =
+                  vparamss map {
+                    vparams =>
+                      if (vparams.isEmpty) vparams
+                      else vparams map {
+                        vparam =>
+                          templateVals find {
+                            _._1 == vparam.name
+                          } map {
+                            templateVal =>
+                              ValDef(Modifiers(vparam.mods.flags | templateVal._2.flags, templateVal._2.privateWithin,
+                                (vparam.mods.annotations ::: templateVal._2.annotations) distinct), vparam.name, vparam.tpt, vparam.rhs)
+                          } getOrElse vparam
+                      }
                     }
-                }
-              } else null
 
-              if (primaryConstr != null) {
                 //constructor's modifier
                 if (cstrMods.hasFlag(AccessFlags)) {
                   print(" ")
@@ -273,13 +261,12 @@ class ASTPrinters(val global: Global) {
                     print(" ")
                   }
                 }
-              } else print(" ")
+              } getOrElse {print(" ")}
             } else print(" ")
 
             //get trees without default classes and traits (when they are last)
             val printedParents = removeDefaultTypesFromList(parents)(List("AnyRef"))(if (mods.hasFlag(CASE)) List("Product", "Serializable") else Nil)
 
-            //pre-init block possible only if there are printed parents
             print(if (mods.isDeferred) "<: " else if (!printedParents.isEmpty) "extends "
               else "", impl)
           }
@@ -319,7 +306,6 @@ class ASTPrinters(val global: Global) {
             if (!mods.isDeferred)
               print(" = ", if (rhs.isEmpty) "_" else rhs)
           }
-          //val a: (=> Int) => Int = null
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
           printAnnotations(tree)
@@ -433,7 +419,7 @@ class ASTPrinters(val global: Global) {
             }
 
         //TODO REMOVE NULL CHECKING
-          //pre-init block representation
+          //init block representation
           if (presuperVals != null && !presuperVals.isEmpty) {
             print("{")
             printColumn(presuperVals, "", ";", "")
@@ -560,7 +546,6 @@ class ASTPrinters(val global: Global) {
           print("(");
           printValueParams(vparams, true);
           print(" => ", body, ")")
-          //if (printIds && tree.symbol != null) print("#" + tree.symbol.id)
 
         case Typed(expr, tp) =>
           tp match {
@@ -608,8 +593,7 @@ class ASTPrinters(val global: Global) {
         //case Select(apply: Apply, name) if (!settings.debug.value) =>
         //print(apply,".",symName(tree, name))
 
-      //TODO - remove settings.debug.value
-        case Select(qual@New(tpe), name) if (!settings.debug.value) =>
+        case Select(qual@New(tpe), name) =>
           print(qual)
 
         case Select(qualifier, name) => {
@@ -657,12 +641,10 @@ class ASTPrinters(val global: Global) {
         case AppliedTypeTree(tp, args) =>
           //it's possible to have (=> String) => String type but Function1[=> String, String] is not correct
           def containsByNameTypeParam =
-        //TODO remove x => x match
-            args exists { x => x match {
+            args exists {
                 case AppliedTypeTree(Select(qual, name), _) => name.toString.equals("<byname>")
                 case _ => false
               }
-            }
 
           if (containsByNameTypeParam) {
             print("(")
