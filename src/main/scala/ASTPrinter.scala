@@ -15,23 +15,23 @@ import nsc.Global
  * To change this template use File | Settings | File Templates.
  */
 
-class ASTPrinters(val global: Global, val out: PrintWriter) {
+class ASTPrinters(val global: Global) {
 
   import global._
 
-  def show(what: Any, generic: Boolean) = {
+  //TODO remove generic flag
+  def show(what: Any, generic: Boolean = true) = {
     val buffer = new StringWriter()
     val writer = new PrintWriter(buffer)
 
-    val printers = new ASTPrinters(global, writer)
-    var printer = new printers.ASTPrinter
+    var printer = new ASTPrinter(writer)
 
     printer.print(what)
     writer.flush()
     buffer.toString
   }
 
-  class ASTPrinter extends global.TreePrinter(out) {
+  class ASTPrinter(out: PrintWriter) extends global.TreePrinter(out) {
     //TODO maybe we need to pass this stack when explicitly run show inside print
     val contextStack = scala.collection.mutable.Stack[Tree]()
 
@@ -146,13 +146,30 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
       }
     }
 
+    def printCodeInParantheses(condition: Boolean)(body: =>Unit) {
+      if (condition) print("(")
+      body
+      if (condition) print(")")
+    }
+
+    def specialTreeContext(context: Tree)(iIf: Boolean = true, iMatch: Boolean = true,
+        iTry: Boolean = true, iAnnotated: Boolean = true, iBlock: Boolean = true, iLabelDef: Boolean = true) = {
+      context match {
+        case _: If => iIf
+        case _: Match => iMatch
+        case _: Try => iTry
+        case _: Annotated => iAnnotated
+        case _: Block => iBlock
+        case _: LabelDef => iLabelDef
+        case _ => false
+      }
+    }
+
     //Danger while using inheritance: it's hidden (overwritten) method
     def backquotedPath(t: Tree): String = {
       t match {
-        case Select(qual, name) if (name.isTermName & (qual match {
-            case _: If | _: Match | _: Try | _: Annotated | _: Block => true //TODO - outside
-            case _ => false
-          }))  => "(%s).%s".format(backquotedPath(qual), symName(t, name))
+          //IF, Match, Try, Annotated, Block
+        case Select(qual, name) if (name.isTermName && specialTreeContext(qual)(iLabelDef = false)) => "(%s).%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTermName  => "%s.%s".format(backquotedPath(qual), symName(t, name))
         case Select(qual, name) if name.isTypeName  => "%s#%s".format(backquotedPath(qual), symName(t, name))
         case Ident(name)                            => symName(t, name)
@@ -266,42 +283,41 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           }
 
         case PackageDef(packaged, stats) =>
-          contextStack.push(tree)
-          packaged match {
-            case Ident(name) if name == nme.EMPTY_PACKAGE_NAME =>
-              //printColumn(stats, " {", ";", "}")
-              printSeq(stats) {
-                print(_)
-              } {
-                print(";");
-                println()
-              };
-            case _ =>
-              printAnnotations(tree)
-              print("package ", packaged);
-              printColumn(stats, " {", ";", "}")
+          contextManaged(tree){
+            packaged match {
+              case Ident(name) if name == nme.EMPTY_PACKAGE_NAME =>
+                printSeq(stats) {
+                  print(_)
+                } {
+                  print(";");
+                  println()
+                };
+              case _ =>
+                printAnnotations(tree)
+                print("package ", packaged);
+                printColumn(stats, " {", ";", "}")
+            }
           }
-          contextStack.pop()
 
         case ModuleDef(mods, name, impl) =>
-          contextStack.push(tree)
-          printAnnotations(tree)
-          printModifiers(tree, mods);
-          val Template(parents @ List(_*), self, methods) = impl
-          val parentsWAnyRef = removeDefaultClassesFromList(parents, List("AnyRef"))
-          print("object " + symName(tree, name), if (!parentsWAnyRef.isEmpty) " extends " else " ", impl)
-          contextStack.pop()
+          contextManaged(tree){
+            printAnnotations(tree)
+            printModifiers(tree, mods);
+            val Template(parents @ List(_*), self, methods) = impl
+            val parentsWAnyRef = removeDefaultClassesFromList(parents, List("AnyRef"))
+            print("object " + symName(tree, name), if (!parentsWAnyRef.isEmpty) " extends " else " ", impl)
+          }
 
         case vd@ValDef(mods, name, tp, rhs) =>
           printAnnotations(tree)
           printModifiers(tree, mods)
           print(if (mods.isMutable) "var " else "val ", symName(tree, name))
           if (name.endsWith("_")) print(" "); printOpt(": ", tp)
-          contextStack.push(tree)
-          if (!mods.isDeferred)
-            print(" = ", if (rhs.isEmpty) "_" else rhs)
-          contextStack.pop()
-          val a: (=> Int) => Int = null
+          contextManaged(tree){
+            if (!mods.isDeferred)
+              print(" = ", if (rhs.isEmpty) "_" else rhs)
+          }
+          //val a: (=> Int) => Int = null
 
         case dd@DefDef(mods, name, tparams, vparamss, tp, rhs) =>
           printAnnotations(tree)
@@ -312,9 +328,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           if (tparams.isEmpty && (vparamss.isEmpty || vparamss(0).isEmpty) && name.endsWith("_"))
             print(" ")
           printOpt(": ", tp);
-          contextStack.push(tree)
-          printOpt(" = " + (if (mods.hasFlag(MACRO)) "macro " else ""), rhs)
-          contextStack.pop()
+          contextManaged(tree){
+            printOpt(" = " + (if (mods.hasFlag(MACRO)) "macro " else ""), rhs)
+          }
 
         case td@TypeDef(mods, name, tparams, rhs) =>
           if (mods hasFlag (PARAM | DEFERRED)) {
@@ -327,34 +343,31 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             printModifiers(tree, mods);
             print("type " + symName(tree, name))
             printTypeParams(tparams);
-            contextStack.push(tree)
-            printOpt(" = ", rhs)
-            contextStack.pop()
+            contextManaged(tree){
+              printOpt(" = ", rhs)
+            }
           }
 
         case LabelDef(name, params, rhs) =>
           if (name.contains("while$")) {
-            contextStack.push(tree)
-            val If(cond, thenp, elsep) = rhs
-            print("while (", cond, ") ")
-
-            val Block(list, wh) = thenp
-            printColumn(list, "", ";", "")
-
-            contextStack.pop()
+            contextManaged(tree){
+              val If(cond, thenp, elsep) = rhs
+              print("while (", cond, ") ")
+              val Block(list, wh) = thenp
+              printColumn(list, "", ";", "")
+            }
           } else if (name.contains("doWhile$")) {
-            contextStack.push(tree)
-            val Block(bodyList: List[Tree], ifCond @ If(cond, thenp, elsep)) = rhs
-            print("do ")
-            printColumn(bodyList, "", ";", "")
-            print(" while (", cond, ") ")
-            //TODO - see match
-            contextStack.pop()
+            contextManaged(tree){
+              val Block(bodyList: List[Tree], ifCond @ If(cond, thenp, elsep)) = rhs
+              print("do ")
+              printColumn(bodyList, "", ";", "")
+              print(" while (", cond, ") ")
+            }
           } else {
             print(symName(tree, name)); printLabelParams(params);
-            contextStack.push(tree)
-            printBlock(rhs)
-            contextStack.pop()
+            contextManaged(tree){
+              printBlock(rhs)
+            }
           }
 
           //be careful (but we can try to invoke it from super - problem with backuotedPath
@@ -498,28 +511,21 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             } else {
               print(" {")
             }
-            contextStack.push(tree)
-            printColumn(modBody, "", ";", "}")
-            contextStack.pop()
+//            contextStack.push(tree)
+//            printColumn(modBody, "", ";", "}")
+//            contextStack.pop()
+            contextManaged(tree) {
+              printColumn(modBody, "", ";", "}")
+            }
           }
           currentOwner = currentOwner1
 
         case Block(stats, expr) =>
-          contextStack.push(tree)
-          printColumn(stats ::: List(expr), "{", ";", "}")
-          contextStack.pop()
+          contextManaged(tree){
+            printColumn(stats ::: List(expr), "{", ";", "}")
+          }
 
         case Match(selector, cases) =>
-//          def insertBraces(body: =>Unit) {
-//            selector match {
-//              case m: Match =>
-//                print("(")
-//                body
-//                print(")")
-//              case _ => body
-//            }
-//          }
-
           //insert braces if match is inner
           //make this function available for other casses
           //passing required type for checking
@@ -536,26 +542,21 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           val selectorType1 = selectorType
           selectorType = selector.tpe
 
-          val printParanthesis = selector match {
-            case _: If | _: Match | _: Try | _: Annotated | _: Block => true
-            case _ => false
-          }
+          val printParantheses = specialTreeContext(selector)(iLabelDef = false)
 
           tree match {
             case Match(EmptyTree, cs) =>
               printColumn(cases, "{", "", "}")
             case _ =>
               insertBraces {
-                contextStack.push(tree)
-                if (printParanthesis) print("(")
-                print(selector);
-                if (printParanthesis) print(")")
-                contextStack.pop()
-
+                contextManaged(tree){
+                  printCodeInParantheses(printParantheses) {
+                    print(selector);
+                  }
+                }
                 printColumn(cases, " match {", "", "}")
               }
           }
-
           selectorType = selectorType1
 
         case CaseDef(pat, guard, body) =>
@@ -570,9 +571,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
             print("???")
           print(pat);
           printOpt(" if ", guard)
-          contextStack.push(tree)
-          print(" => ", body)
-          contextStack.pop()
+          contextManaged(tree) {
+            print(" => ", body)
+          }
 
         case Star(elem) =>
           print(elem, "*")
@@ -615,15 +616,16 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
 //          nels
 //        }))
           tree match {
-            //processing of methods started with colons (x :\ list)
+            //processing methods started with colons (x :\ list)
             case Apply(Block(l1 @ List(sVD :ValDef), a1 @ Apply(Select(_, methodName), l2 @ List(Ident(iVDName)))), l3 @ List(_*))
               if sVD.mods.hasFlag(SYNTHETIC) && methodName.toString.endsWith("$colon") && (sVD.name == iVDName) =>
-                val printBlock = Block(l1, Apply(a1, l3))
-                print(printBlock)
-            //TODO find more general way to include matches, ...
-            case Apply(_: If, _) | Apply(_: Try, _) | Apply(_: Match, _) | Apply(_: LabelDef, _) | Apply(_: Block, _) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
+              val printBlock = Block(l1, Apply(a1, l3))
+              print(printBlock)
+            case Apply(tree1, _) if (specialTreeContext(tree1)(iAnnotated = false)) => printCodeInParantheses(true){print(fun)}; printRow(vargs, "(", ", ", ")")
+//            case Apply(tree1, _) if (specialTreeContext(tree1)(iAnnotated = false)) => print("(", fun, ")"); printRow(vargs, "(", ", ", ")")
             case _ => print(fun); printRow(vargs, "(", ", ", ")")
           }
+
 
         case Super(This(qual), mix) =>
           if (!qual.isEmpty || tree.symbol != NoSymbol) print(symName(tree, qual) + ".")
@@ -643,10 +645,9 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
           print(qual)
 
         case Select(qualifier, name) => {
-          qualifier match {
-            case _: Match | _: If | _: Try | _: LabelDef | _: Block => print("(", backquotedPath(qualifier), ").", symName(tree, name))
-            case _ => print(backquotedPath(qualifier), ".", symName(tree, name))
-          }
+          val printParantheses = specialTreeContext(qualifier)(iAnnotated = false)
+          if (printParantheses) print("(", backquotedPath(qualifier), ").", symName(tree, name))
+          else print(backquotedPath(qualifier), ".", symName(tree, name))
         }
 
         case id@Ident(name) =>
@@ -673,23 +674,17 @@ class ASTPrinters(val global: Global, val out: PrintWriter) {
               printRow(args, "(", ",", ")")
           }
 
-        //TODO combine all similar methods
-          val printParanthesis = tree match {
-            //TODO check - do we need them for label defs (while, do while)
-            case _: If | _: Match| _: Try | _: Annotated | _: LabelDef | _: Block => true
-            case _ => false
-          }
-
-        print(if (printParanthesis) "(" else "",tree, if (printParanthesis) ")" else "",if (tree.isType) " " else ": ")
-        printAnnot()
+          val printParantheses = specialTreeContext(tree)()
+          printCodeInParantheses(printParantheses){print(tree)}; print(if (tree.isType) " " else ": ")
+          printAnnot()
 
         case SelectFromTypeTree(qualifier, selector) =>
           print("(", qualifier, ")#", symName(tree, selector))
 
         case CompoundTypeTree(templ) =>
-          contextStack.push(tree)
-          print(templ)
-          contextStack.pop()
+          contextManaged(tree){
+            print(templ)
+          }
 
         case AppliedTypeTree(tp, args) =>
           //it's possible to have (=> String) => String type but Function1[=> String, String] is not correct
