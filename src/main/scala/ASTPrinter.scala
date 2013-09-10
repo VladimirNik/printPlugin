@@ -19,7 +19,6 @@ class ASTPrinters(val global: Global) {
 
   import global._
 
-  //TODO remove generic flag
   def show(what: Any) = {
     val buffer = new StringWriter()
     val writer = new PrintWriter(buffer)
@@ -199,6 +198,11 @@ class ASTPrinters(val global: Global) {
          }
       }
 
+    def getPrimaryConstr(methods: List[Tree]) =
+      methods collectFirst {
+        case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
+      }
+
     override def printTree(tree: Tree) {
       tree match {
         case EmptyTree =>
@@ -220,9 +224,7 @@ class ASTPrinters(val global: Global) {
                 case ValDef(mods, name, _, _) => (name, mods)
               }
 
-              val primaryConstrOpt = methods collectFirst {
-                case dd: DefDef if dd.name == nme.CONSTRUCTOR => dd
-              }
+              val primaryConstrOpt = getPrimaryConstr(methods)
 
               primaryConstrOpt map {
                 primaryConstr =>
@@ -381,35 +383,6 @@ class ASTPrinters(val global: Global) {
           val currentOwner1 = currentOwner
           if (tree.symbol != NoSymbol) currentOwner = tree.symbol.owner
 
-        //TODO REMOVE NULL CHECKING
-          val primaryCtr = body collectFirst {
-            case dd: DefDef => dd
-          } getOrElse (null)
-
-          var ap: Apply = null
-          var ctArgs: List[Tree] = null
-          //vals in preinit blocks
-          var presuperVals: List[Tree] = null
-
-        //TODO BLOCK TO REFACTOR
-          primaryCtr match {
-              //parse it to Strings
-            case DefDef(_, _, _, _, _, Block(ctBody @ List(_*), _)) =>
-              ctBody collectFirst {
-                  case apply@Apply(_, crtArs) =>
-                    ap = apply
-                    ctArgs = crtArs
-              }
-              presuperVals = ctBody filter {
-                _ match {
-                  case vd:ValDef => vd.mods.hasFlag(PRESUPER)
-                  case _ => false
-                }
-              }
-            case _ =>
-          }
-        //TODO END OF BLOCK TO REFACTOR
-
           val printedParents =
             getCurrentContext() match {
               //val example: Option[AnyRef => Product1[Any] with AnyRef] = ... - CompoundTypeTree with template
@@ -418,12 +391,30 @@ class ASTPrinters(val global: Global) {
               case _ => removeDefaultClassesFromList(parents, List("AnyRef"))
             }
 
-        //TODO REMOVE NULL CHECKING
-          //init block representation
-          if (presuperVals != null && !presuperVals.isEmpty) {
-            print("{")
-            printColumn(presuperVals, "", ";", "")
-            print("} " + (if (!printedParents.isEmpty) "with " else ""))
+          val primaryCtrOpt = getPrimaryConstr(body)
+          var ap: Option[Apply] = None
+
+          for (primaryCtr <- primaryCtrOpt) {
+            primaryCtr match {
+              case DefDef(_, _, _, _, _, Block(ctBody @ List(_*), _)) =>
+                ap = ctBody collectFirst {
+                  case apply: Apply => apply
+                }
+
+                //vals in preinit blocks
+                val presuperVals = ctBody filter {
+                  case vd:ValDef => vd.mods.hasFlag(PRESUPER)
+                  case _ => false
+                }
+
+                if (!presuperVals.isEmpty) {
+                  print("{")
+                  printColumn(presuperVals, "", ";", "")
+                  print("} " + (if (!printedParents.isEmpty) "with " else ""))
+                }
+
+              case _ =>
+            }
           }
 
           if (!printedParents.isEmpty) {
@@ -438,7 +429,7 @@ class ASTPrinters(val global: Global) {
               }
             }
 
-            val applyParamsList = getConstrParams(ap, Nil)
+            val applyParamsList = ap map {getConstrParams(_, Nil)} getOrElse Nil
             applyParamsList foreach {x: List[Tree] => if (!(x.isEmpty && applyParamsList.size == 1)) printRow(x, "(", ", ", ")")}
 
             if (!traits.isEmpty) {
@@ -447,7 +438,7 @@ class ASTPrinters(val global: Global) {
           }
           //remove primary constr def and constr val and var defs
           //right contains all constructors
-        //TODO understand how filter on Tree works
+          //TODO see impl filter on Tree
           val (left, right) = body.filter {
             //remove valdefs defined in constructor and pre-init block
             case vd: ValDef => !vd.mods.hasFlag(PARAMACCESSOR) && !vd.mods.hasFlag(PRESUPER)
