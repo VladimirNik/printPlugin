@@ -5,8 +5,8 @@ import Configurations.CompilerPlugin
 object SourcePrinter extends Build {
    val printPlugin = Project("printPlugin", file(".")) settings (
 	name := "printPlugin",
-	//organization := "org.scala-lang.plugins",
-        organization := "test.org",
+	organization := "org.scala-lang.plugins",
+        //organization := "test.org",
 	//version := "1.0",
         version := "0.2.0",
 	scalaVersion := "2.10.2",
