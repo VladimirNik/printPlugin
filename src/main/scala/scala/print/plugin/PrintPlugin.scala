@@ -1,12 +1,12 @@
-package com.vladimir.nik.print.plugin
+package scala.print.plugin
 
 import scala.tools.nsc
+import scala.pretty.printers._
 import nsc.Global
 import nsc.Phase
 import nsc.plugins.Plugin
 import nsc.plugins.PluginComponent
 import java.io.{StringWriter, PrintWriter, File}
-import com.vladimir.nik.print.plugin.printer.ASTPrinters
 
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
@@ -92,7 +92,7 @@ class PrintPlugin(val global: Global) extends Plugin {
     override val runsAfter = List[String](prevPhase)
     override val runsBefore = List[String](nextPhase)
 
-    val printers = new ASTPrinters(global)
+    val printers = new PrettyPrinters(global)
 
     val phaseName = "printSourceAfter_" + prevPhase
     def newPhase(_prev: Phase): StdPhase = new PrintPhase(_prev)
@@ -103,6 +103,7 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
             //regenerate only scala files
+            //val printers = new PrettyPrinters(global)
             val sourceCode = if (unit.source.file.name.contains(".scala")) reconstructTree(unit.body)
               else unit.source.content.mkString
             println("-- Source name: " + unit.source.file.name + " --")

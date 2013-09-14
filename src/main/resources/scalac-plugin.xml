@@ -1,4 +1,4 @@
 <plugin>
   <name>printPlugin</name>
-  <classname>com.vladimir.nik.print.plugin.PrintPlugin</classname>
+  <classname>scala.print.plugin.PrintPlugin</classname>
 </plugin>
