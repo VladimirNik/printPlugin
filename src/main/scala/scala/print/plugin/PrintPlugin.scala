@@ -92,7 +92,7 @@ class PrintPlugin(val global: Global) extends Plugin {
     override val runsAfter = List[String](prevPhase)
     override val runsBefore = List[String](nextPhase)
 
-    val printers = new PrettyPrinters(global)
+    val printers = PrettyPrinters(global)
 
     val phaseName = "printSourceAfter_" + prevPhase
     def newPhase(_prev: Phase): StdPhase = new PrintPhase(_prev)
@@ -103,7 +103,6 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
             //regenerate only scala files
-            //val printers = new PrettyPrinters(global)
             val sourceCode = if (unit.source.file.name.contains(".scala")) reconstructTree(unit.body)
               else unit.source.content.mkString
             println("-- Source name: " + unit.source.file.name + " --")
