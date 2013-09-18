@@ -62,6 +62,8 @@ class PrintPlugin(val global: Global) extends Plugin {
     val defaultDirPath = System.getProperty("user.dir")
 
     try {
+      //TODO process case where getParentFile is null
+      //for spire check unit.source.file.file
       if (unit.source.file != null && unit.source.file.file.getParentFile != null) { //TODO remove null
         val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
         val genSourcePath = if (overrideSrc) currentFilePath
