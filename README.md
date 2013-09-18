@@ -35,7 +35,7 @@ Compile the project:
 sbt assembly
 ```
 
-After the compilation generated source should be in sourceFromAST folder (projectFolder/sourceFromAST).
+After the compilation generated sources should be in sourceFromAST folder (projectFolder/sourceFromAST).
 
 Command-line projects:
 
