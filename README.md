@@ -1,14 +1,14 @@
 printPlugin
 ============
 
-Scala compiler plugin 
+Scala compiler plugin:
 
 - use scala-pretty-printer library
 - generate project sources based on program's ASTs
 
 ### Build process
 
-go to printplugin directory and run:
+from printplugin directory run:
 
 ```
 sbt assembly
@@ -35,17 +35,17 @@ Compile the project:
 sbt assembly
 ```
 
-After compilation generated source should be in sourceFromAST folder (projectFolder/sourceFromAST).
+After the compilation generated source should be in sourceFromAST folder (projectFolder/sourceFromAST).
 
 Command-line projects:
 
-To compile project in the command-line use:
+To compile the project in the command-line use:
 
 ```
 scalac -Xplugin:/path/to/jar/printplugin_2.10-assembly.jar hello/world/*.scala
 ```
 
-Current version limitation: sources from default package are not regenerated (if compile project directly using scalac).
+Current version limitation: sources from default package are not regenerated (if compile the project directly using scalac).
 
 ### Options
 
@@ -61,7 +61,7 @@ base-dir - setup custom path for regenerated sources
 scalacOptions += "-P:printplugin:base-dir:[/some/path]"
 ```
 
-oversrc - overwrite original project's sources with generated during compilation.
+oversrc - overwrite original sources with generated during the compilation.
 
 ```
 scalacOptions += "-P:printplugin:oversrc"
