@@ -29,7 +29,7 @@ See <http://scala-sbt.org/release/docs/Getting-Started/Setup.html> for instructi
 
 ### Usage
 
-For sbt project:
+#### Sbt projects:
 
 In the target project add to build.sbt (or build.scala) following option:
 
@@ -45,7 +45,7 @@ $ sbt compile
 
 After the compilation generated sources should be in sourceFromAST folder (projectFolder/sourceFromAST).
 
-Command-line projects:
+#### Command-line projects:
 
 To compile the project from the command-line use:
 
