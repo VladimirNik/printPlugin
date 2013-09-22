@@ -62,23 +62,47 @@ class PrintPlugin(val global: Global) extends Plugin {
     val defaultDirPath = System.getProperty("user.dir")
 
     try {
-      //TODO process case where getParentFile is null
-      //for spire check unit.source.file.file
-      if (unit.source.file != null && unit.source.file.file.getParentFile != null) { //TODO remove null
-        val currentFilePath = unit.source.file.file.getParentFile.getAbsolutePath
-        val genSourcePath = if (overrideSrc) currentFilePath
-          else currentFilePath.replaceFirst(defaultDirPath, defaultDirPath + File.separator + dirName + File.separator + folderName).replaceFirst(defaultDirPath, baseDir)
-        val dir = new File(genSourcePath)
-        dir.mkdirs()
+      def findActualPath(filePath: String) =
+        if (overrideSrc) filePath
+          else filePath.replaceFirst(defaultDirPath, defaultDirPath + File.separator + dirName + File.separator + folderName)
+            .replaceFirst(defaultDirPath, baseDir)
 
-        val filePath = genSourcePath + File.separator + unit.source.file.name
-        writeToFile(filePath, sourceCode)
+      val currentFile = unit.source.file.file
+      Option(currentFile) map {
+        currentFile =>
+          val currentFilePath = currentFile.getAbsolutePath
+          val actualPath = findActualPath(currentFilePath)
+          println("currentFilePath: " + currentFilePath)
+          println("actualPath: " + actualPath)
 
-        //check file creation
-        val checkFilePath = defaultDirPath + File.separator + ".checkSrcRegen"
-        writeToFile(checkFilePath, "source regeneration: " + new java.util.Date(), false)
-      } else {
+          //if parent file exists - create all dirs
+          //currentFile.getParentFile.exists
+          for (parentFile <- Option(currentFile.getParentFile)) {
+            val parentFilePath = parentFile.getAbsolutePath
+            val actualParentPath = findActualPath(parentFilePath)
+
+            println("parentFilePath: " + parentFilePath)
+            println("actualParentPath: " + actualParentPath)
+
+            val dir = new File(actualParentPath)
+            dir.mkdirs()
+          }
+
+          writeToFile(actualPath, sourceCode)
+
+          //check file creation
+          val checkFilePath = defaultDirPath + File.separator + ".checkSrcRegen"
+          writeToFile(checkFilePath, "source regeneration: " + new java.util.Date(), false)
+      } getOrElse {
         println("Can't process unit: " + unit)
+        for (ufile <- Option(unit.source.file)) {
+          for (ufilefile <- Option(ufile.file)) {
+            println("absolute path: " + ufilefile.getAbsolutePath)
+            for (ufilefileparent <- Option(ufilefile.getParentFile)) {
+              println("parent absolute path: " + ufilefileparent.getAbsolutePath)
+            }
+          }
+        }
       }
     } catch {
       case e @ _ => println("Error during processing unit: " + unit)
@@ -105,10 +129,14 @@ class PrintPlugin(val global: Global) extends Plugin {
       def apply(unit: CompilationUnit) {
         try {
             //regenerate only scala files
-            val sourceCode = if (unit.source.file.name.contains(".scala")) reconstructTree(unit.body)
-              else unit.source.content.mkString
-            println("-- Source name: " + unit.source.file.name + " --")
-            writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+            val fileName = unit.source.file.name
+            if (fileName.endsWith(".scala")) {
+              println("-- Source name: " + fileName + " --")
+              val sourceCode = reconstructTree(unit.body)
+              writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+            } else
+              println("-- Source name: " + fileName + " is not processed")
+            //unit.source.content.mkString
         } catch {
           case e: Exception =>
             e.printStackTrace()
