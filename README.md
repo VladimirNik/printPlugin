@@ -10,7 +10,7 @@ Scala compiler plugin:
 
 From printplugin directory run:
 
-```
+```shell
 $ sbt assembly
 ```
 
@@ -18,7 +18,7 @@ Produced jar should be in project's target directory.
 
 To add printPlugin jar to local ivy repo use:
 
-```
+```shell
 $ sbt publish-local
 ```
 
@@ -39,7 +39,7 @@ libraryDependencies += compilerPlugin("org.scala-lang.plugins" %% "printplugin" 
 
 Compile the project: 
 
-```
+```shell
 $ sbt compile
 ```
 
@@ -49,7 +49,7 @@ Command-line projects:
 
 To compile the project from the command-line use:
 
-```
+```shell
 $ scalac -Xplugin:/path/to/jar/printplugin-assembly-0.2.0.jar hello/world/*.scala
 ```
 
@@ -75,7 +75,7 @@ scalacOptions += "-P:printplugin:oversrc"
 
 ### Example
 
-```
+```shell
 $ scalac -Xplugin:path/to/jar/printplugin_2.10-assembly.jar -P:printplugin:base-dir:/path/to/generated/sources -P:printplugin:dir-name:source-hello-world hello/world/*.scala
 ```
 
