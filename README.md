@@ -14,8 +14,7 @@ from printplugin directory run:
 sbt assembly
 ```
 
-Produced jar should have the following path:
-path/to/ivy2/local/repo/org.scala-lang.plugins/printplugin_2.10/0.2.0/jars/printplugin_2.10-assembly.jar
+Produced jar should be in project's target directory.
 
 see <http://scala-sbt.org/release/docs/Getting-Started/Setup.html> to setup sbt.
 
@@ -26,26 +25,24 @@ For sbt project:
 In the target project add to build.sbt (or build.scala) following option:
 
 ```
-scalacOptions += "-Xplugin:[path_to_printPlugin]/target/scala-2.10/printplugin_2.10-1.0.jar"
+scalacOptions += "-Xplugin:/path/to/printPlugin/target/scala-2.10/printplugin-assembly-0.2.0.jar"
 ```
 
 Compile the project: 
 
 ```
-sbt assembly
+sbt compile
 ```
 
 After the compilation generated sources should be in sourceFromAST folder (projectFolder/sourceFromAST).
 
 Command-line projects:
 
-To compile the project in the command-line use:
+To compile the project from the command-line use:
 
 ```
-scalac -Xplugin:/path/to/jar/printplugin_2.10-assembly.jar hello/world/*.scala
+scalac -Xplugin:/path/to/jar/printplugin-assembly-0.2.0.jar hello/world/*.scala
 ```
-
-Current version limitation: sources from default package are not regenerated (if compile the project directly using scalac).
 
 ### Options
 
