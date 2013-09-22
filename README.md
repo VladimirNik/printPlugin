@@ -8,15 +8,24 @@ Scala compiler plugin:
 
 ### Build process
 
-from printplugin directory run:
+From printplugin directory run:
 
 ```
-sbt assembly
+$ sbt assembly
 ```
 
 Produced jar should be in project's target directory.
 
-see <http://scala-sbt.org/release/docs/Getting-Started/Setup.html> to setup sbt.
+To add printPlugin jar to local ivy repo use:
+
+```
+$ sbt publish-local
+```
+
+Required jar should have similar path:
+/path/to/.ivy2/local/org.scala-lang.plugins/printplugin_2.10/0.2.0/jars/printplugin_2.10-assembly.jar
+
+See <http://scala-sbt.org/release/docs/Getting-Started/Setup.html> for instructions to setup sbt.
 
 ### Usage
 
@@ -24,14 +33,14 @@ For sbt project:
 
 In the target project add to build.sbt (or build.scala) following option:
 
-```
-scalacOptions += "-Xplugin:/path/to/printPlugin/target/scala-2.10/printplugin-assembly-0.2.0.jar"
+```scala
+libraryDependencies += compilerPlugin("org.scala-lang.plugins" %% "printplugin" % "0.2.0")
 ```
 
 Compile the project: 
 
 ```
-sbt compile
+$ sbt compile
 ```
 
 After the compilation generated sources should be in sourceFromAST folder (projectFolder/sourceFromAST).
@@ -41,35 +50,35 @@ Command-line projects:
 To compile the project from the command-line use:
 
 ```
-scalac -Xplugin:/path/to/jar/printplugin-assembly-0.2.0.jar hello/world/*.scala
+$ scalac -Xplugin:/path/to/jar/printplugin-assembly-0.2.0.jar hello/world/*.scala
 ```
 
 ### Options
 
 dir-name - setup custom name for folder with regenerated sources
 
-```
+```scala
 scalacOptions += "-P:printplugin:dir-name:printAST"
 ```
 
 base-dir - setup custom path for regenerated sources 
 
-```
+```scala
 scalacOptions += "-P:printplugin:base-dir:[/some/path]"
 ```
 
 oversrc - overwrite original sources with generated during the compilation.
 
-```
+```scala
 scalacOptions += "-P:printplugin:oversrc"
 ```
 
 ### Example
 
 ```
-scalac -Xplugin:path/to/jar/printplugin_2.10-assembly.jar -P:printplugin:base-dir:/path/to/generated/sources -P:printplugin:dir-name:source-hello-world hello/world/*.scala
+$ scalac -Xplugin:path/to/jar/printplugin_2.10-assembly.jar -P:printplugin:base-dir:/path/to/generated/sources -P:printplugin:dir-name:source-hello-world hello/world/*.scala
 ```
 
-Regenerated sources should be in sourceFromAST folder .
+Regenerated sources should be in sourceFromAST folder.
 
 sbt configuration can be found in treePrintTester project - <https://github.com/VladimirNik/treePrintTester>
