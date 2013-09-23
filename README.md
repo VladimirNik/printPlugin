@@ -45,7 +45,7 @@ $ sbt compile
 
 After the compilation generated sources should be in sourceFromAST folder (projectFolder/sourceFromAST).
 
-#### Command-line projects:
+#### Command-line:
 
 To compile the project from the command-line use:
 
@@ -64,7 +64,7 @@ scalacOptions += "-P:printplugin:dir-name:printAST"
 base-dir - setup custom path for regenerated sources 
 
 ```scala
-scalacOptions += "-P:printplugin:base-dir:[/some/path]"
+scalacOptions += "-P:printplugin:base-dir:/path/for/generated/sources"
 ```
 
 oversrc - overwrite original sources with generated during the compilation.
