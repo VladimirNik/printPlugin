@@ -1,11 +1,12 @@
 package scala.print.plugin
 
 import scala.tools.nsc
-import scala.pretty.printers._
+import scala.sprinter.printers._
 import nsc.Global
 import nsc.Phase
 import nsc.plugins.Plugin
 import nsc.plugins.PluginComponent
+import scala.tools.nsc.ast.Printers
 import java.io.{StringWriter, PrintWriter, File}
 
 object PrintPlugin {
@@ -132,6 +133,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             val fileName = unit.source.file.name
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
+              //println("Hello world tree: " + showRaw(unit.body))
               val sourceCode = reconstructTree(unit.body)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             } else
