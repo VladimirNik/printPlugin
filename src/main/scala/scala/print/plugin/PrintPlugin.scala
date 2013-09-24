@@ -96,14 +96,14 @@ class PrintPlugin(val global: Global) extends Plugin {
           writeToFile(checkFilePath, "source regeneration: " + new java.util.Date(), false)
       } getOrElse {
         println("Can't process unit: " + unit)
-        for (ufile <- Option(unit.source.file)) {
-          for (ufilefile <- Option(ufile.file)) {
-            println("absolute path: " + ufilefile.getAbsolutePath)
-            for (ufilefileparent <- Option(ufilefile.getParentFile)) {
-              println("parent absolute path: " + ufilefileparent.getAbsolutePath)
-            }
-          }
-        }
+//        for (ufile <- Option(unit.source.file)) {
+//          for (ufilefile <- Option(ufile.file)) {
+//            println("absolute path: " + ufilefile.getAbsolutePath)
+//            for (ufilefileparent <- Option(ufilefile.getParentFile)) {
+//              println("parent absolute path: " + ufilefileparent.getAbsolutePath)
+//            }
+//          }
+//        }
       }
     } catch {
       case e @ _ => println("Error during processing unit: " + unit)
@@ -133,12 +133,10 @@ class PrintPlugin(val global: Global) extends Plugin {
             val fileName = unit.source.file.name
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
-              //println("Hello world tree: " + showRaw(unit.body))
               val sourceCode = reconstructTree(unit.body)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             } else
               println("-- Source name: " + fileName + " is not processed")
-            //unit.source.content.mkString
         } catch {
           case e: Exception =>
             e.printStackTrace()
