@@ -3,7 +3,7 @@ printPlugin
 
 Scala compiler plugin:
 
-- use scala-pretty-printer library
+- use sprinter library
 - generate project sources based on program's ASTs
 
 ### Build process
