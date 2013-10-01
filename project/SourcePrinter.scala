@@ -42,8 +42,6 @@ object SourcePrinter extends Build {
      Seq(
        git.remoteRepo := "https://github.com/VladimirNik/printPlugin.git",
        includeFilter in Jekyll := ("*.html" | "*.png" | "*.js" | "*.css" | "CNAME")
-       // the migration guide goes to scaladoc
-       //excludeFilter in Jekyll := ("actors-migration-guide.html")
      )
    )
 
