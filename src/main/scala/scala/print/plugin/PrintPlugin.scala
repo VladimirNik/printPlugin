@@ -26,10 +26,11 @@ class PrintPlugin(val global: Global) extends Plugin {
   var dirName = "sourceFromAST"
   var overrideSrc = false
 
-  //object afterTyper extends PrintPhaseComponent("typer", "patmat")
-  object afterParser extends PrintPhaseComponent("parser", "namer")
+  object afterTyper extends PrintPhaseComponent("typer", "patmat")
+  //object afterParser extends PrintPhaseComponent("parser", "namer")
 
-  val components = List[PluginComponent](afterParser)
+  //val components = List[PluginComponent](afterParser)
+  val components = List[PluginComponent](afterTyper)
 
   override def processOptions(options: List[String], error: String => Unit) {
     for (option <- options) {
@@ -146,7 +147,7 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
 
     def reconstructTree(what: Tree) = {
-      printers.show(what)
+      printers.show(what, PrettyPrinters.AFTER_TYPER)
     }
   }
 }
