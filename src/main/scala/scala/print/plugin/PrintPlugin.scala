@@ -27,6 +27,8 @@ class PrintPlugin(val global: Global) extends Plugin {
   var overrideSrc = false
 
   object afterTyper extends PrintPhaseComponent("typer", "patmat")
+  //object afterTyper extends PrintPhaseComponent("cleanup", "terminal")
+  //object afterTyper extends PrintPhaseComponent("parser", "namer")
   //object afterParser extends PrintPhaseComponent("parser", "namer")
 
   //val components = List[PluginComponent](afterParser)
@@ -134,6 +136,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             val fileName = unit.source.file.name
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
+              println("showRaw: " + showRaw(unit.body))
               val sourceCode = reconstructTree(unit.body)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             } else
