@@ -147,7 +147,7 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
 
     def reconstructTree(what: Tree) = {
-      printers.show(what, PrettyPrinters.AFTER_TYPER)
+      printers.showType(what)
     }
   }
 }
