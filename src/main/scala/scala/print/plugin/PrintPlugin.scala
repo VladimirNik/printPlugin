@@ -134,8 +134,29 @@ class PrintPlugin(val global: Global) extends Plugin {
             val fileName = unit.source.file.name
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
-              val sourceCode = reconstructTree(unit.body)
-              writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+              val unitTree = unit.body
+              val imports = (unitTree.filter{
+                case imp:Import => true
+                case _ => false
+              }).asInstanceOf[List[Import]]
+              val typeTrees = (unitTree.filter{
+                case ttr: TypeTree => true
+                case _ => false
+              }) distinct
+
+              val printedTypes: Map[String, String] = Map.empty
+              typeTrees foreach {
+                fullTree => {
+                  val originalString = fullTree.toString()
+                  val printedString = printType(fullTree, imports)
+                  printedTypes + (originalString -> printedString)
+                }
+              }
+
+              //TODO print imports, map and file name (in single file - ++ toFile)
+
+              //val sourceCode = reconstructTree(unitTree)
+              //writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             } else
               println("-- Source name: " + fileName + " is not processed")
         } catch {
@@ -146,8 +167,11 @@ class PrintPlugin(val global: Global) extends Plugin {
       }
     }
 
+    def printType(what: Tree, imports: List[Import]) =
+      printers.showType(what, imports)
+
     def reconstructTree(what: Tree) = {
-      printers.showType(what)
+      printers.show(what)
     }
   }
 }
