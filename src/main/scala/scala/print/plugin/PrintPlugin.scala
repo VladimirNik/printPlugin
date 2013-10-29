@@ -7,7 +7,7 @@ import nsc.Phase
 import nsc.plugins.Plugin
 import nsc.plugins.PluginComponent
 import scala.tools.nsc.ast.Printers
-import java.io.{StringWriter, PrintWriter, File}
+import java.io.{FileOutputStream, StringWriter, PrintWriter, File}
 
 object PrintPlugin {
   val baseDirectoryOpt = "base-dir:"
@@ -48,20 +48,7 @@ class PrintPlugin(val global: Global) extends Plugin {
 
   def writeSourceCode(unit: CompilationUnit, sourceCode: String, folderName: String) {
 
-    def writeToFile(path: String, body: String, ovrride: Boolean = true) = {
-      val file = new File(path)
-        if (ovrride || !file.exists()) {
-        val writer = new PrintWriter(file)
-          try {
-          writer.write(body)
-        } finally {
-          writer.close()
-        }
-      }
-    }
-
     val defaultDirName = "sourceFromAST"
-    val defaultDirPath = System.getProperty("user.dir")
 
     try {
       def findActualPath(filePath: String) =
@@ -112,6 +99,72 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
   }
 
+  val defaultDirPath = System.getProperty("user.dir")
+
+  def writeToFile(path: String, body: String, ovrride: Boolean = true) = {
+    val file = new File(path)
+    val writer = new PrintWriter(new FileOutputStream(file, !ovrride /* append = true */))
+//    if (ovrride || !file.exists())
+      try {
+        writer.write(body)
+      } finally {
+        writer.close()
+      }
+  }
+
+  def printImportsAndTypes(printedTypes: Map[String, String], imports: List[Import], fileName: String) = {
+    val importsTestFilePath = defaultDirPath + File.separator + ".importsTest"
+    val text = new StringBuilder("=======================================\n")
+    text.append(fileName + "\n")
+    text.append("---------------------------------------\n")
+    if (!imports.isEmpty) {
+      text.append("imports:\n\n")
+      //printing imports
+      imports foreach {
+        imp => {
+          text.append(show(imp) + "\n")
+          System.out.println("show(imp): " + show(imp))
+          System.out.println("imp.expr: " + imp.expr)
+          System.out.println("showRaw(imp): " + showRaw(imp))
+          System.out.println("showRaw(imp.expr): " + showRaw(imp.expr))
+          imp match {
+            case Import(s @ Select(tree, name), _) =>
+              System.out.println("import: show(name) = " + showRaw(name))
+              System.out.println("import: name = " + name)
+              System.out.println("showRaw(s.symbol.name) = " + showRaw(s.symbol.name))
+              System.out.println("showRaw(s.symbol) = " + showRaw(s.symbol))
+              System.out.println("s.symbol.fullName = " + s.symbol.fullName)
+            case Import(ide @ Ident(name), _) =>
+              System.out.println("import: show(name) = " + showRaw(name))
+              System.out.println("import: name = " + name)
+              System.out.println("showRaw(ide.symbol.name) = " + showRaw(ide.symbol.name))
+              System.out.println("showRaw(ide.symbol) = " + showRaw(ide.symbol))
+              System.out.println("ide.symbol.fullName = " + ide.symbol.fullName)
+            case _ =>
+          }
+        }
+      }
+      text.append("\n")
+      text.append("types:\n\n")
+      if (!printedTypes.isEmpty) {
+        printedTypes foreach{
+          pt => text.append(pt._1 + " |--> " + pt._2 + "\n")
+        }
+      } else {
+        text.append("type map is empty..." + "\n")
+      }
+    } else {
+      text.append("imports are empty..." + "\n")
+    }
+    //get or create file in current project (defaultDirPath + File.separator + ".importsTest")
+    //print file name
+    //print imports
+    //print each map entry (key -> printType(...)) - if printType is the same - key -> doesn't change
+    //all text should be add (don't overwrite existing file)
+    text.append("---------------------------------------\n\n")
+    writeToFile(importsTestFilePath, text.toString, false)
+  }
+
   //Phase should be inserted between prevPhase and nextPhase
   //but it possible that not right after prevPhase or not right before nextPhase
   class PrintPhaseComponent(val prevPhase: String, val nextPhase: String) extends PluginComponent {
@@ -135,28 +188,45 @@ class PrintPlugin(val global: Global) extends Plugin {
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
               val unitTree = unit.body
+
               val imports = (unitTree.filter{
                 case imp:Import => true
                 case _ => false
               }).asInstanceOf[List[Import]]
               val typeTrees = (unitTree.filter{
-                case ttr: TypeTree => true
+                case ttr: TypTree => true
                 case _ => false
               }) distinct
 
-              val printedTypes: Map[String, String] = Map.empty
+
+              println("@@@ typeTrees.size: " + typeTrees.size)
+
+              import scala.collection.mutable.{Map => mMap}
+              val defaultPrinting = "SAME_T"
+
+              val printedTypes: mMap[String, String] = mMap.empty
               typeTrees foreach {
                 fullTree => {
                   val originalString = fullTree.toString()
                   val printedString = printType(fullTree, imports)
-                  printedTypes + (originalString -> printedString)
+
+                  //System.out.println("}}} originalString: " + originalString)
+                  //System.out.println("}}} printedString: " + printedString)
+                  if (!printedTypes.contains(originalString))
+                    printedTypes += (if (originalString != printedString) (originalString -> printedString) else (originalString -> defaultPrinting))
+                  else {
+                    val oldValue = (printedTypes get (originalString) getOrElse(""))
+                    if (oldValue != printedString && oldValue != defaultPrinting)
+                      printedTypes += (originalString + "(1)" -> printedString)
+                  }
+                  //check if entry in map is already exist and add new entry it new entry value differs from old or if we have new key
                 }
               }
 
-              //TODO print imports, map and file name (in single file - ++ toFile)
+              println("@@@ printedTypes.size: " + printedTypes.size)
 
-              //val sourceCode = reconstructTree(unitTree)
-              //writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+              //TODO print imports, map and file name (in single file - ++ toFile)
+              printImportsAndTypes(printedTypes.toMap, imports, fileName)
             } else
               println("-- Source name: " + fileName + " is not processed")
         } catch {
