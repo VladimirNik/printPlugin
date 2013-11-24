@@ -250,12 +250,7 @@ class PrintPlugin(val global: Global) extends Plugin {
           global.askShutdown()
 
         override def print(tree: global.Tree): String = {
-          val initialIndentation = if(tree.hasExistingCode) indentationString(tree) else ""
-          val in = new Indentation(defaultIndentationStep, initialIndentation)
-
-          val res = generatePrint(cleanTree(tree), sourceFile = None)
-          //val res = generatePrint(tree, sourceFile = None)
-          res
+          generatePrint(cleanTree(tree), sourceFile = None)
         }
       }
 
@@ -266,7 +261,7 @@ class PrintPlugin(val global: Global) extends Plugin {
       object InferRefInstance extends InterRefCompiler {
         val global: nsc.interactive.Global = getInteractiveCompiler(getCompiler)
 
-//        val file = new BatchSourceFile("fileName", demoSourceStr)
+//      val file = new BatchSourceFile("fileName", demoSourceStr)
         val testTree = global.parseTree(unit.source)
       }
 
@@ -283,7 +278,6 @@ class PrintPlugin(val global: Global) extends Plugin {
 //      System.out.println("InferRefInstance.testTree.pos.isTransparent: " + InferRefInstance.testTree.pos.isTransparent)
 
       val res = InferRefInstance.print(InferRefInstance.testTree.asInstanceOf[InferRefInstance.global.Tree])
-//      val res = GlobalRefInstance.print(InferRefInstance.testTree.asInstanceOf[GlobalRefInstance.global.Tree])
       InferRefInstance.shutdown()
       res
 //      printers.show(InferRefInstance.testTree, PrettyPrinters.AFTER_TYPER, printMultiline = true, decodeNames = true)
