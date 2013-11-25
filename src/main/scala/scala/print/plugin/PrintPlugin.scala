@@ -258,29 +258,15 @@ class PrintPlugin(val global: Global) extends Plugin {
         val global = getCompiler
       }
 
-      object InferRefInstance extends InterRefCompiler {
+      object InterRefInstance extends InterRefCompiler {
         val global: nsc.interactive.Global = getInteractiveCompiler(getCompiler)
 
-//      val file = new BatchSourceFile("fileName", demoSourceStr)
         val testTree = global.parseTree(unit.source)
       }
 
-//      System.out.println("what.pos: " + what.pos)
-//      System.out.println("what.pos.isDefined: " + InferRefInstance.cleanTree(what.asInstanceOf[InferRefInstance.global.Tree]).pos.isDefined)
-//      System.out.println("what.pos.isOpaqueRange: " + InferRefInstance.cleanTree(what.asInstanceOf[InferRefInstance.global.Tree]).pos.isOpaqueRange)
-//      System.out.println("what.pos.isRange: " + InferRefInstance.cleanTree(what.asInstanceOf[InferRefInstance.global.Tree]).pos.isRange)
-//      System.out.println("what.pos.isTransparent: " + InferRefInstance.cleanTree(what.asInstanceOf[InferRefInstance.global.Tree]).pos.isTransparent)
-//
-//      System.out.println("InferRefInstance.testTree.pos: " + InferRefInstance.testTree.pos)
-//      System.out.println("InferRefInstance.testTree.isDefined: " + InferRefInstance.testTree.pos.isDefined)
-//      System.out.println("InferRefInstance.testTree.pos.isOpaqueRange: " + InferRefInstance.testTree.pos.isOpaqueRange)
-//      System.out.println("InferRefInstance.testTree.pos.isRange: " + InferRefInstance.testTree.pos.isRange)
-//      System.out.println("InferRefInstance.testTree.pos.isTransparent: " + InferRefInstance.testTree.pos.isTransparent)
-
-      val res = InferRefInstance.print(InferRefInstance.testTree.asInstanceOf[InferRefInstance.global.Tree])
-      InferRefInstance.shutdown()
+      val res = InterRefInstance.print(InterRefInstance.testTree.asInstanceOf[InterRefInstance.global.Tree])
+      InterRefInstance.shutdown()
       res
-//      printers.show(InferRefInstance.testTree, PrettyPrinters.AFTER_TYPER, printMultiline = true, decodeNames = true)
     }
   }
 }
