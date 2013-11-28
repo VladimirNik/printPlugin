@@ -135,6 +135,8 @@ class PrintPlugin(val global: Global) extends Plugin {
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
               val sourceCode = reconstructTree(unit.body)
+              println(sourceCode)
+              //println(global.show(unit.body))
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
             } else
               println("-- Source name: " + fileName + " is not processed")
@@ -147,7 +149,7 @@ class PrintPlugin(val global: Global) extends Plugin {
     }
 
     def reconstructTree(what: Tree) = {
-      printers.show(what, PrettyPrinters.AFTER_NAMER, printMultiline = true)
+      printers.show(what, PrettyPrinters.AFTER_TYPER, printMultiline = true, decodeNames = false)
     }
   }
 }
