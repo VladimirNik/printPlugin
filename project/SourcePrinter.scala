@@ -16,7 +16,7 @@ object SourcePrinter extends Build {
     Seq(
       organization := "org.scala-lang.plugins",
       version := "0.2.0",
-      scalaVersion := "2.10.2"
+      scalaVersion := "2.11.0-M7"
     )
     val assemblyProjectSettings = Seq(
       excludedJars in assembly <<= (fullClasspath in assembly) map { cp => 
@@ -47,6 +47,6 @@ object SourcePrinter extends Build {
 
     def dependencies(sv: String) = Seq(
       "org.scala-lang" % "scala-compiler" % sv,
-      "org.scala-lang" %% "sprinter" % "0.2.0"
+      "org.scala-lang" % "sprinter-tree_2.11.0-M7" % "0.2.0"
     )
 }
