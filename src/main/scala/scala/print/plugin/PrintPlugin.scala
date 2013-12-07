@@ -136,6 +136,7 @@ class PrintPlugin(val global: Global) extends Plugin {
               println("-- Source name: " + fileName + " --")
               val sourceCode = reconstructTree(unit.body)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+              println(sourceCode)
             } else
               println("-- Source name: " + fileName + " is not processed")
         } catch {
