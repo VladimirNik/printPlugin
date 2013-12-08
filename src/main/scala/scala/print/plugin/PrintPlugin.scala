@@ -1,7 +1,6 @@
 package scala.print.plugin
 
 import scala.tools.nsc
-import scala.sprinter.printers._
 import nsc.Global
 import nsc.Phase
 import nsc.plugins.Plugin
@@ -120,8 +119,6 @@ class PrintPlugin(val global: Global) extends Plugin {
     override val runsAfter = List[String](prevPhase)
     override val runsBefore = List[String](nextPhase)
 
-    val printers = PrettyPrinters(global)
-
     val phaseName = "printSourceAfter_" + prevPhase
     def newPhase(_prev: Phase): StdPhase = new PrintPhase(_prev)
 
@@ -134,8 +131,13 @@ class PrintPlugin(val global: Global) extends Plugin {
             val fileName = unit.source.file.name
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
-              val sourceCode = reconstructTree(unit.body)
+              val sourceCode = toCode(unit.body)
+              //println(global.asInstanceOf[scala.reflect.api.Printers].getCode)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
+              println(sourceCode)
+//              import scala.reflect.runtime.universe._
+//              val tree = Apply(Select(Ident(newTermName("x")), newTermName("$plus")), List(Literal(Constant(2))))
+//              println("created tree: " + toCode(tree))
             } else
               println("-- Source name: " + fileName + " is not processed")
         } catch {
@@ -144,10 +146,6 @@ class PrintPlugin(val global: Global) extends Plugin {
             throw e
         }
       }
-    }
-
-    def reconstructTree(what: Tree) = {
-      printers.show(what, PrettyPrinters.AFTER_NAMER, printMultiline = true)
     }
   }
 }
