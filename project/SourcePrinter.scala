@@ -10,8 +10,8 @@ object SourcePrinter extends Build {
       version := "0.2.0",
       //autoScalaLibrary := false,
       //scalaVersion := "2.11.0-local",
-      scalaHome := Some(file("/home/vova/scala-projects/GSoC/scala/scala/build/pack")),
-      scalaVersion := "2.11.0-M7", 
+      scalaHome := Some(file("/home/vova/scala-projects/GSoC/test-printers-for-scala/scala/build/pack")),
+      scalaVersion := "2.10.3", 
       libraryDependencies <++= scalaVersion apply dependencies
     ) 
 
