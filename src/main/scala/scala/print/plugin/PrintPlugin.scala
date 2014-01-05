@@ -132,6 +132,7 @@ class PrintPlugin(val global: Global) extends Plugin {
             if (fileName.endsWith(".scala")) {
               println("-- Source name: " + fileName + " --")
               val sourceCode = toCode(unit.body)
+              unit.body.toString
               //println(global.asInstanceOf[scala.reflect.api.Printers].getCode)
               writeSourceCode(unit, sourceCode, "before_" + nextPhase)
               println(sourceCode)
